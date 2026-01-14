@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model ItemCatalog {
+  id          Int     @id @default(autoincrement())
+  game_id     String  @db.VarChar(255)
+  name        String  @db.VarChar(255)
+  type        String  @db.VarChar(255)
+  max_usages  Int?    
+  rule_id     Int
+  rule        ItemUsageRule @relation(fields: [rule_id], references: [id])
+  inventories Inventory[]
+
+  @@map("item_catalogs")
+}
+
+model Inventory {
+  id              Int      @id @default(autoincrement())
+  user_id         Int
+  item_catalog_id Int
+  catalog         ItemCatalog @relation(fields: [item_catalog_id], references: [id])
+  remaining_uses  Int?     @default(0)
+  daily_counter   Int?     @default(0)
+  last_used_date  DateTime? 
+  source          String   @db.VarChar(255)
+  status          String?  @db.VarChar(255)
+  created_at      DateTime @default(now())
+  logs            ItemUsageLog[]
+
+  @@map("inventory")
+}
+
+model ItemUsageRule {
+  id               Int    @id @default(autoincrement())
+  name             String @db.VarChar(255)
+  daily_limit      Int
+  cooldown_seconds Int?   @default(0)
+  game_id          Int    
+  min_level_required Int? @default(0)
+  catalogs         ItemCatalog[]
+
+  @@map("item_usage_rules")
+}
+
+model ItemUsageLog {
+  id           Int      @id @default(autoincrement())
+  action       String   @db.VarChar(255)
+  note         String?  @db.VarChar(255)
+  inventory_id Int
+  inventory    Inventory @relation(fields: [inventory_id], references: [id])
+  created_at   DateTime @default(now())
+  user_id      Int      
+
+  @@map("item_usage_logs")
+}

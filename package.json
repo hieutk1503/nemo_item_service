@@ -1,0 +1,25 @@
+{
+  "name": "item_service",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db": "node src/config/db.js"
+  },
+  "dependencies": {
+    "@prisma/client": "5.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "joi": "^18.0.2"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "prisma": "5.10.0"
+  }
+}
