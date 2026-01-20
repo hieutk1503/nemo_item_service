@@ -1,0 +1,65 @@
+{
+  "compilerOptions": {
+    /* --- 1. CẤU HÌNH ĐƯỜNG DẪN (File Layout) --- */
+    // Code TypeScript nguồn nằm ở đâu? (Giống thư mục chứa file .cs)
+    "rootDir": "./src",
+    
+    // Code Javascript sau khi build sẽ vứt vào đâu? (Giống thư mục bin/Debug)
+    "outDir": "./dist",
+
+    /* --- 2. CẤU HÌNH PHIÊN BẢN (Environment) --- */
+    // Node.js dùng cơ chế gì để các file gọi nhau? 
+    // "commonjs" là chuẩn ổn định nhất của Node (dùng require), dù bạn viết code là import.
+    "module": "commonjs",
+
+    // Dịch ra phiên bản JS nào? ES2022 là bản xịn, hỗ trợ async/await ngon lành.
+    // (Giống việc bạn chọn build ra .NET 6 hay .NET 8)
+    "target": "es2022",
+
+    // Khai báo để TS biết môi trường chạy có sẵn các hàm thư viện nào.
+    "lib": ["ES2022"],
+    
+    /* --- 3. TƯƠNG THÍCH & AN TOÀN (Interoperability) --- */
+    // CỰC QUAN TRỌNG: Giúp import các thư viện cũ (viết bằng CommonJS) vào dự án TS mượt mà.
+    // Không có dòng này, import Express hay React rất dễ lỗi đỏ lòm.
+    "esModuleInterop": true,
+
+    // Bắt buộc viết đúng hoa/thường tên file.
+    // Windows (máy bạn) thì "User.ts" và "user.ts" là một.
+    // Linux (Server sếp) thì nó là 2 file khác nhau.
+    // Bật cái này để tránh việc code ở nhà chạy, lên server sập.
+    "forceConsistentCasingInFileNames": true,
+
+    // Cho phép import file .json (VD: import data from './config.json')
+    "resolveJsonModule": true,
+
+    /* --- 4. DEBUGGING --- */
+    // Tạo ra file bản đồ (.js.map).
+    // Giúp VS Code biết dòng lỗi ở file .js tương ứng với dòng nào ở file .ts gốc.
+    // (Bản chất chính là file .pdb trong .NET)
+    "sourceMap": true,
+
+    /* --- 5. KIỂM SOÁT LỖI (Strict Mode) --- */
+    // Bật chế độ khó tính nhất. Bắt lỗi null, sai kiểu dữ liệu ngay khi gõ.
+    // (Giống chế độ "Treat Warnings As Errors" trong Visual Studio)
+    "strict": true,
+
+    // Cấm dùng kiểu 'any' một cách ngầm định. Ép phải định nghĩa kiểu rõ ràng.
+    "noImplicitAny": true,
+
+    // Bỏ qua việc check lỗi trong thư mục node_modules.
+    // Code thư viện người ta viết sai kệ người ta, mình chỉ check code của mình thôi cho nhanh.
+    "skipLibCheck": true,
+    
+    "experimentalDecorators": true,// bật tính năng decorator để có thể validation middle DTO.
+
+    "emitDecoratorMetadata": true
+
+  },
+
+  // Chỉ biên dịch code trong thư mục src
+  "include": ["src"],
+  
+  // Không bao giờ biên dịch thư viện và thư mục output
+  "exclude": ["node_modules", "dist"]
+}

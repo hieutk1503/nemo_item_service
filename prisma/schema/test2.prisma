@@ -1,0 +1,8 @@
+model Test2 {
+  id        Int      @id @default(autoincrement())
+  title     String
+  
+  // Khóa ngoại trỏ về Test1 (dù Test1 đang nằm ở file khác)
+  test1Id   Int
+  test1     Test1    @relation(fields: [test1Id], references: [id])
+}

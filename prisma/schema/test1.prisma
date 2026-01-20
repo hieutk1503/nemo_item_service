@@ -1,0 +1,8 @@
+model Test1 {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+
+  // Thử quan hệ sang bảng Test2 ở file kia luôn cho máu
+  test2Rel  Test2[]
+}
