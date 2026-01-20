@@ -75,6 +75,35 @@ const ItemController = {
         } catch (error) {
             return res.status(500).json({ success: false, message: error.message });
         }
+    },
+    checkOwnership: async (req, res) => {
+        try {
+            const { userId, catalogId } = req.body;
+            const result = await ItemService.checkOwnership(userId, catalogId);
+            
+            return res.status(200).json({
+                success: true,
+                data: result
+            });
+        } catch (error) {
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    },
+
+    // [MỚI] API Revoke Item
+    revokeItem: async (req, res) => {
+        try {
+            const { userId, inventoryId, reason } = req.body;
+            const result = await ItemService.revokeItem(userId, inventoryId, reason);
+
+            return res.status(200).json({
+                success: true,
+                message: "Thu hồi vật phẩm thành công!",
+                data: result
+            });
+        } catch (error) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
     }
 };
 

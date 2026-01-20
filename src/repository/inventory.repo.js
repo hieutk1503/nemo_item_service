@@ -61,6 +61,28 @@ const InventoryRepo = {
                 note: note
             }
         });
+    },
+    // [MỚI - Giai đoạn 2] Tìm món đồ khả dụng đầu tiên theo loại (Dùng để check điều kiện)
+    findActiveItemByCatalog: async (userId, catalogId) => {
+        return await prisma.inventory.findFirst({
+            where: {
+                user_id: Number(userId),
+                item_catalog_id: Number(catalogId),
+                status: 'AVAILABLE',
+                remaining_uses: { gt: 0 } // Phải còn lượt dùng
+            }
+        });
+    },
+
+    // [MỚI - Giai đoạn 2] Thu hồi vật phẩm (Đổi status thành REMOVED)
+    updateStatus: async (inventoryId, newStatus) => {
+        return await prisma.inventory.update({
+            where: { id: Number(inventoryId) },
+            data: { 
+                status: newStatus,
+                last_used_date: new Date() // Cập nhật thời gian tác động
+            }
+        });
     }
 };
 

@@ -110,6 +110,41 @@ const ItemService = {
         );
 
         return newItem;
+    },
+    checkOwnership: async (userId, catalogId) => {
+        const item = await InventoryRepo.findActiveItemByCatalog(userId, catalogId);
+        
+        // Trả về true/false và thông tin item nếu có
+        if (item) {
+            return { hasItem: true, item: item };
+        } else {
+            return { hasItem: false, item: null };
+        }
+    },
+
+    // [MỚI] Thu hồi vật phẩm (Store hoàn tiền / Admin xóa đồ)
+    revokeItem: async (userId, inventoryId, reason) => {
+        // 1. Kiểm tra vật phẩm có tồn tại không
+        const item = await InventoryRepo.findById(inventoryId);
+        if (!item) throw new Error("Vật phẩm không tồn tại!");
+        
+        // 2. Check quyền (User này có đúng là chủ sở hữu không)
+        if (item.user_id !== Number(userId)) {
+            throw new Error("Vật phẩm không thuộc về user này!");
+        }
+
+        // 3. Cập nhật trạng thái sang REVOKED (Đã thu hồi)
+        const updatedItem = await InventoryRepo.updateStatus(inventoryId, 'REVOKED');
+
+        // 4. Ghi log lịch sử
+        await InventoryRepo.createLog(
+            userId, 
+            inventoryId, 
+            'REVOKE_ITEM', 
+            `Bị thu hồi. Lý do: ${reason}`
+        );
+
+        return updatedItem;
     }
 };
 
