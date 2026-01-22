@@ -1,4 +1,4 @@
-/* import { OrderController } from "../Controllers/OrderController";
+` import { OrderController } from "../Controllers/OrderController";
 import { JwtAuthMiddle } from "../Middlewares/JwtAuthMiddle";
 import { ValidatorMiddle } from "../Middlewares/ValidatorMiddle";
 import { CreateRouter } from "../Utils/CreateRouter"; // Lưu ý: check lại tên file/hàm viết hoa/thường cho đồng bộ nhé
@@ -42,4 +42,4 @@ import { OrderRequest } from "../Dtos/Requests/OrderRequest"; */
     }
 ]); */
 
-// khi làm xong sang bên Router.ts import vào và use là xong, ví dụ ở bên file Router.ts
+// khi làm xong sang bên Router.ts import vào và use là xong, ví dụ ở bên file Router.ts`

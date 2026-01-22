@@ -4,9 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "dev:core": "nodemon src/server.ts",
+    "dev:cms": "nodemon src/cms.ts",
+    "dev": "concurrently \"npm run dev:core\" \"npm run dev:cms\"",
+    "build": "tsc && copyfiles -u 1 src/locales/**/*.json dist/",
+    "start": "node dist/server.js",
+    "start:cms": "node dist/cms.js"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +20,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.0.9",
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.11",
     "prisma": "^6.7.0",
     "ts-node": "^10.9.2",
@@ -26,13 +30,18 @@
     "@prisma/client": "^6.7.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "copyfiles": "^2.4.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "i18next": "^25.8.0",
+    "i18next-fs-backend": "^2.6.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.4",
+    "redis": "^5.10.0",
     "reflect-metadata": "^0.2.2",
     "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "winston-mongodb": "^7.0.1"
   },
   "prisma": {

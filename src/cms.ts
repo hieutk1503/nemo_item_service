@@ -6,14 +6,12 @@ import { CorsMiddle } from "./middlewares/CorsMiddle";
 import { Logger } from "./utils/Logger";
 import { connectMongoDB } from "./configs/MongoDBConfig";
 import prisma from "./configs/PrismaContext";
-import { CreateLoggerMiddle } from "./middlewares/LoggerMiddle";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.CMS_PORT || 3001;
 
 app.use(CorsMiddle);
 app.use(express.json());
-app.use(CreateLoggerMiddle(Logger));
 
 app.use('/api', router);
 
