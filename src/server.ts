@@ -7,6 +7,7 @@ import { Logger } from "./utils/Logger";
 import { connectMongoDB } from "./configs/MongoDBConfig";
 import prisma from "./configs/PrismaContext";
 import { CreateLoggerMiddle } from "./middlewares/LoggerMiddle";
+import { connectRedis } from "./utils/RedisClient";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +25,8 @@ const startServer = async () => {
         Logger.info('✅ Database MySQL kết nối thành công!');
 
         await connectMongoDB();
+
+        await connectRedis();
 
         app.listen(PORT, () =>{
             console.log(`Server đang chạy tại http://localhost:${PORT}`);

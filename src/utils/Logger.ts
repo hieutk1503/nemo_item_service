@@ -104,3 +104,6 @@ export const Logger = createServiceLogger('CoreSystem_Log', 'CoreSystem_Log', fa
 //ex:
 //export const StoreActionLogger = createServiceLogger('StoreAction_Log', 'Log_Action_Store', true);
 // mục đích tạo riêng là để log các action quan trong về nghiệp vụ cần phải lưu db
+
+// Log cho module prize
+export const PrizeActionLogger = createServiceLogger('PrizeAction_Log', 'prize_actions', true);

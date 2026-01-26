@@ -6,3 +6,88 @@ datasource db {
   provider = "mysql"
   url = env("DATABASE_URL")
 }
+
+// Leaderboard: Cấu hình giải thưởng
+model LeaderboardPrizeConfig {
+  id         Int        @id @default(autoincrement())
+  gameId     String     @map("game_id") @db.VarChar(30)
+  rankFrom   Int        @map("rank_from")
+  rankTo     Int        @map("rank_to")
+  rewardType RewardType @map("reward_type")
+  rewardId   String     @map("reward_id") @db.VarChar(30)
+  quantity   Int
+  isActive   Boolean    @default(true) @map("is_active")
+
+  @@map("leaderboard_prize_config")
+  @@index([gameId, isActive])
+}
+
+// Leaderboard: Snapshot (Chốt sổ)
+model LeaderboardSnapshot {
+  id         Int      @id @default(autoincrement())
+  gameId     String   @map("game_id") @db.VarChar(30)
+  seasonId   Int      @map("season_id")
+  userId     String   @map("user_id") @db.VarChar(64)
+  userName   String   @map("user_name") @db.VarChar(50)
+  totalScore BigInt   @map("total_score")
+  rankScore  Int      @map("rank_score")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("leaderboard_snapshot")
+  @@unique([gameId, seasonId, userId])
+  @@index([gameId, seasonId, rankScore])
+}
+
+// Lịch sử điểm số
+model ScoreHistory {
+  id         Int      @id @default(autoincrement())
+  userId     String   @map("user_id") @db.VarChar(64)
+  gameId     String   @map("game_id") @db.VarChar(30)
+  seasonId   Int      @map("season_id")
+  scorePlus  Int      @map("score_plus")
+  totalScore BigInt   @map("total_score")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("score_history")
+  @@index([userId, gameId])
+}
+
+// Luckybox: Cấu hình quà
+model LuckyboxPrizeConfig {
+  id         Int        @id @default(autoincrement())
+  gameId     String     @map("game_id") @db.VarChar(30)
+  rewardType RewardType @map("reward_type")
+  rewardId   String     @map("reward_id") @db.VarChar(30)
+  quantity   Int
+  weight     Float
+  isActive   Boolean    @default(true) @map("is_active")
+
+  @@map("luckybox_prize_config")
+  @@index([gameId, isActive])
+}
+
+//  Lịch sử nhận quà chung
+model RewardHistory {
+  id         Int        @id @default(autoincrement())
+  userId     String     @map("user_id") @db.VarChar(64)
+  gameId     String     @map("game_id") @db.VarChar(30)
+  sourceType SourceType @map("source_type")
+  sourceId   String?    @map("source_id") @db.VarChar(30) // ID của config quà
+  rewardType RewardType @map("reward_type")
+  rewardId   String     @map("reward_id") @db.VarChar(30)
+  quantity   Int
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@map("reward_history")
+  @@index([userId, gameId])
+}
+
+enum RewardType {
+  Items
+  Wallet
+}
+
+enum SourceType {
+  luckybox
+  leaderboard
+}
