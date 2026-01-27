@@ -3,11 +3,97 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// Leaderboard: Cấu hình giải thưởng
+model Game {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique @db.VarChar(50)
+  name         String        @db.VarChar(100)
+  baseUrl      String        @db.VarChar(255)
+  isActive     Boolean       @default(true)
+  plans        Plan[]
+  transactions Transaction[]
+
+  @@map("games")
+}
+
+model User {
+  msisdn        String         @id @db.VarChar(20)
+  username      String?        @db.VarChar(100)
+  fullName      String?        @db.VarChar(100)
+  lang          String         @default("en") @db.VarChar(10)
+  lastLogin     DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+  subscriptions Subscription[]
+  transactions  Transaction[]
+
+  @@map("users")
+}
+
+model Plan {
+  id            Int            @id @default(autoincrement())
+  gameId        Int
+  name          String         @db.VarChar(100)
+  price         Decimal        @db.Decimal(10, 2)
+  duration_days Int
+  packageCode   String         @db.VarChar(50)
+  description   String?        @db.Text
+  benefits      PlanBenefit[]
+  game          Game           @relation(fields: [gameId], references: [id])
+  subscriptions Subscription[]
+
+  @@index([gameId], map: "plans_gameId_fkey")
+  @@map("plans")
+}
+
+model PlanBenefit {
+  id             Int    @id @default(autoincrement())
+  planId         Int
+  benefit_type   String @db.VarChar(50)
+  benefit_ref_id String @db.VarChar(100)
+  quantity       Int
+  grant_type     String @db.VarChar(50)
+  plan           Plan   @relation(fields: [planId], references: [id])
+
+  @@index([planId], map: "plan_benefits_planId_fkey")
+  @@map("plan_benefits")
+}
+
+model Subscription {
+  id        Int       @id @default(autoincrement())
+  userId    String    @db.VarChar(20)
+  planId    Int
+  status    Int       @default(0)
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  refId     String?   @unique
+  plan      Plan      @relation(fields: [planId], references: [id])
+  user      User      @relation(fields: [userId], references: [msisdn])
+
+  @@index([planId], map: "subscriptions_planId_fkey")
+  @@index([userId], map: "subscriptions_userId_fkey")
+  @@map("subscriptions")
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  msisdn    String   @db.VarChar(20)
+  gameCode  String   @db.VarChar(50)
+  action    String
+  status    Int
+  payload   String?  @db.Text
+  createdAt DateTime @default(now())
+  game      Game     @relation(fields: [gameCode], references: [code])
+  user      User     @relation(fields: [msisdn], references: [msisdn])
+
+  @@index([gameCode], map: "transactions_gameCode_fkey")
+  @@index([msisdn], map: "transactions_msisdn_fkey")
+  @@map("transactions")
+}
+
 model LeaderboardPrizeConfig {
   id         Int        @id @default(autoincrement())
   gameId     String     @map("game_id") @db.VarChar(30)
@@ -18,11 +104,10 @@ model LeaderboardPrizeConfig {
   quantity   Int
   isActive   Boolean    @default(true) @map("is_active")
 
-  @@map("leaderboard_prize_config")
   @@index([gameId, isActive])
+  @@map("leaderboard_prize_config")
 }
 
-// Leaderboard: Snapshot (Chốt sổ)
 model LeaderboardSnapshot {
   id         Int      @id @default(autoincrement())
   gameId     String   @map("game_id") @db.VarChar(30)
@@ -33,12 +118,11 @@ model LeaderboardSnapshot {
   rankScore  Int      @map("rank_score")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  @@map("leaderboard_snapshot")
   @@unique([gameId, seasonId, userId])
   @@index([gameId, seasonId, rankScore])
+  @@map("leaderboard_snapshot")
 }
 
-// Lịch sử điểm số
 model ScoreHistory {
   id         Int      @id @default(autoincrement())
   userId     String   @map("user_id") @db.VarChar(64)
@@ -48,11 +132,10 @@ model ScoreHistory {
   totalScore BigInt   @map("total_score")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  @@map("score_history")
   @@index([userId, gameId])
+  @@map("score_history")
 }
 
-// Luckybox: Cấu hình quà
 model LuckyboxPrizeConfig {
   id         Int        @id @default(autoincrement())
   gameId     String     @map("game_id") @db.VarChar(30)
@@ -62,24 +145,23 @@ model LuckyboxPrizeConfig {
   weight     Float
   isActive   Boolean    @default(true) @map("is_active")
 
-  @@map("luckybox_prize_config")
   @@index([gameId, isActive])
+  @@map("luckybox_prize_config")
 }
 
-//  Lịch sử nhận quà chung
 model RewardHistory {
   id         Int        @id @default(autoincrement())
   userId     String     @map("user_id") @db.VarChar(64)
   gameId     String     @map("game_id") @db.VarChar(30)
   sourceType SourceType @map("source_type")
-  sourceId   String?    @map("source_id") @db.VarChar(30) // ID của config quà
+  sourceId   String?    @map("source_id") @db.VarChar(30)
   rewardType RewardType @map("reward_type")
   rewardId   String     @map("reward_id") @db.VarChar(30)
   quantity   Int
   createdAt  DateTime   @default(now()) @map("created_at")
 
-  @@map("reward_history")
   @@index([userId, gameId])
+  @@map("reward_history")
 }
 
 enum RewardType {

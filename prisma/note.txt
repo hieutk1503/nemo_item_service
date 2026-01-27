@@ -1,0 +1,8 @@
+npx prisma db pull (nếu update db mới)
+npx prisma migrate dev
+npx prisma migrate dev --name "commit" --create-only
+npx prisma migrate deploy
+Cập nhật code từ DB server:	npx prisma db pull
+Tạo thay đổi mới (có lưu lịch sử):	npx prisma migrate dev --name "ten_thay_doi" --create-only
+Áp dụng thay đổi lên server:	npx prisma migrate deploy
+Cập nhật Typescript Client:	npx prisma generate
