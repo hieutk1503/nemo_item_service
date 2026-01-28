@@ -5,7 +5,7 @@ const REDIS_URL = process.env.REDIS_URL || "";
 
 if (REDIS_URL === "") {
     Logger.error("Thiếu cấu hình REDIS_URL trong .env");
-    process.exit(1); // Cho sập luôn để biết mà sửa, chứ chạy tiếp cũng không làm ăn gì được
+    //process.exit(1); // Cho sập luôn để biết mà sửa, chứ chạy tiếp cũng không làm ăn gì được
 }
 
 export const RedisClient = createClient({

@@ -164,6 +164,94 @@ model RewardHistory {
   @@map("reward_history")
 }
 
+model Item {
+  category_id Int
+  created_at  DateTime    @default(now())
+  description String?     @db.Text
+  icon_url    String?
+  item_code   String      @unique
+  item_id     Int         @id @default(autoincrement())
+  item_name   String
+  max_stack   Int         @default(999)
+  metadata    String?     @db.LongText
+  price       Decimal     @db.Decimal(10, 2)
+  inventories Inventory[]
+  category    Category    @relation(fields: [category_id], references: [category_id])
+
+  @@index([category_id], map: "items_category_id_fkey")
+  @@map("items")
+}
+
+model Category {
+  category_code String @unique
+  category_id   Int    @id @default(autoincrement())
+  category_name String
+  sort_order    Int    @default(0)
+  items         Item[]
+
+  @@map("categories")
+}
+
+model Inventory {
+  inventory_id      Int       @id @default(autoincrement())
+  user_id           Int
+  game_type         String
+  item_type         String
+  item_reference_id Int
+  quantity          Int       @default(1)
+  current_level     Int       @default(1)
+  is_equipped       Boolean   @default(false)
+  custom_data       Json?     @db.Json
+  expires_at        DateTime?
+  acquired_at       DateTime  @default(now())
+  item              Item      @relation(fields: [item_reference_id], references: [item_id])
+
+  @@unique([user_id, game_type, item_reference_id])
+  @@index([item_reference_id], map: "inventory_item_reference_id_fkey")
+  @@map("inventory")
+}
+
+model order_log {
+  id         Int      @id @default(autoincrement())
+  order_id   Int
+  game_id    Int
+  old_status String?
+  new_status String?
+  created_at DateTime @default(now())
+}
+
+model orders {
+  id             Int                    @id @default(autoincrement())
+  game_id        Int
+  user_id        String                 @db.VarChar(20)
+  total_amount   Decimal                @db.Decimal(19, 4)
+  status         orders_status          @default(PENDING)
+  payment_method orders_payment_method?
+  created_at     DateTime               @default(now())
+  orders_item    orders_item[]
+}
+
+model orders_item {
+  id          Int     @id @default(autoincrement())
+  order_id    Int
+  product_id  Int
+  quantity    Int
+  unit_price  Decimal @db.Decimal(19, 4)
+  total_price Decimal @db.Decimal(19, 4)
+  orders      orders  @relation(fields: [order_id], references: [id])
+
+  @@index([order_id], map: "orders_item_order_id_fkey")
+}
+
+model transaction_log {
+  id         Int                    @id @default(autoincrement())
+  order_id   Int
+  game_id    Int
+  amount     Decimal                @db.Decimal(19, 4)
+  status     transaction_log_status
+  created_at DateTime               @default(now())
+}
+
 enum RewardType {
   Items
   Wallet
@@ -172,4 +260,25 @@ enum RewardType {
 enum SourceType {
   luckybox
   leaderboard
+}
+
+enum orders_status {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum transaction_log_status {
+  INIT
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum orders_payment_method {
+  VND
+  USD
+  GEM
+  COIN
 }
