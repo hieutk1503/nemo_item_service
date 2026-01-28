@@ -1,19 +1,34 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/AuthService';
 import { Logger } from '../utils/Logger';
+import { APIResponse, HttpStatusCode } from '../utils/APIResponse';
 
 export class LaunchController {
-    public async launch(req: Request, res: Response) {
+    /**
+     * API: Khởi tạo Game cho User
+     * Method: POST
+     */
+    launch = async (req: Request, res: Response) => {
         try {
-            // Gọi Service xử lý logic login game
-            const result = await AuthService.launchGame(req.body);
+            const request = req.body;
             
-            // result hiện tại đã có statusCode nhờ vào việc cập nhật ServiceResponse
-            return res.status(result.statusCode).json(result);
-        } catch (error) {
-            // Ghi log lỗi vào MongoDB nếu có exception xảy ra
-            Logger.error('LAUNCH_ERR', 'Unhandled error', error);
-            return res.status(500).json({ success: false, message: "Internal Error" });
+            // Gọi Service xử lý nghiệp vụ
+            const result = await AuthService.launchGame(request);
+   
+            if (!result.success) {
+                Logger.error("Lỗi Launch Game: " + result.message);
+                return res.status(HttpStatusCode.BAD_REQUEST)
+                          .json(APIResponse.BadRequest(result.message));
+            }
+
+            Logger.info("Launch game thành công cho: " + request.msisdn);
+            return res.status(HttpStatusCode.OK)
+                      .json(APIResponse.OK("Thành công", result.data));
+        }
+        catch (error: any) {
+            Logger.error(`System Error in launch: ${error.message}`);
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+                      .json(APIResponse.ServerError("Lỗi hệ thống: " + error.message));
         }
     }
 }
