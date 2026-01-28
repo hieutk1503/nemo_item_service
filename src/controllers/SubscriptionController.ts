@@ -1,38 +1,44 @@
 import { Request, Response } from 'express';
 import { SubscriptionService } from '../services/SubscriptionService';
-import { CoreGateway } from '../gateways/CoreGateway';
 import { Logger } from '../utils/Logger';
+import { APIResponse, HttpStatusCode } from '../utils/APIResponse';
 
 export class SubscriptionController {
     
     // API: Mua gói
-    public async purchase(req: Request, res: Response) {
+    purchase = async (req: Request, res: Response) => {
         try {
             const { msisdn, planId } = req.body;
+            if (!msisdn || !planId) {
+                return res.status(HttpStatusCode.BAD_REQUEST).json(APIResponse.BadRequest("Thiếu dữ liệu"));
+            }
             const result = await SubscriptionService.initiatePurchase(msisdn, Number(planId));
             return res.status(result.statusCode).json(result);
-        } catch (e) {
-            return res.status(500).json({ success: false });
+        } catch (e: any) {
+            Logger.error('PURCHASE_CONTROLLER_ERR', e.message);
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError("Internal Error"));
         }
     }
 
-    // API: Xác nhận OTP
-    public async confirm(req: Request, res: Response) {
+    // API: Xác nhận OTP - Đã đưa qua Service
+    confirm = async (req: Request, res: Response) => {
         try {
-            const data = await CoreGateway.confirmSubscription(req.body);
-            return res.json({ success: true, data });
-        } catch (e) {
-            return res.status(500).json({ success: false });
+            const result = await SubscriptionService.confirmOTP(req.body);
+            return res.status(result.statusCode).json(result);
+        } catch (e: any) {
+            Logger.error('CONFIRM_CONTROLLER_ERR', e.message);
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError("Xác nhận thất bại"));
         }
     }
 
     // API: Callback từ CoreGW
-    public async handleCallback(req: Request, res: Response) {
+    handleCallback = async (req: Request, res: Response) => {
         try {
             const result = await SubscriptionService.handleCallback(req.body);
-            return res.status(200).json(result);
-        } catch (e) {
-            return res.status(200).json({ success: false }); // Vẫn trả 200 để tránh retry
+            return res.status(HttpStatusCode.OK).json(result);
+        } catch (e: any) {
+            Logger.error('CALLBACK_CONTROLLER_ERR', e.message);
+            return res.status(HttpStatusCode.OK).json({ success: false, message: "Error logged" }); 
         }
     }
 }
