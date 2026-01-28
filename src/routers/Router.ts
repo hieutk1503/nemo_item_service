@@ -1,13 +1,23 @@
 import { Router } from "express";
-//import templateRouter from "./templateRouter";
+// import templateRouter from "./templateRouter";
 import prizeRouter from "./prizeRouter";
 import ItemRouter from "./ItemRouter";
 
-const router = Router();
-//router.use(templateRouter);
+// Import Router của bạn
+import authRouter from "./authRouter";
+import subscriptionRouter from "./subscriptionRouter";
 
-// router prize
+const router = Router();
+// router.use(templateRouter);
+
+// 1. Router Prize
 router.use('/', prizeRouter);
 router.use('/',ItemRouter)
 
-export default router
+// 2. Router Auth
+router.use('/', authRouter);
+
+// 3. Router Subscription
+router.use('/', subscriptionRouter);
+
+export default router;
