@@ -5,12 +5,11 @@ export class ItemService {
 
     /**
      * 1. DÙNG VẬT PHẨM (USE ITEM)
-     * - Logic mới: Kiểm tra giới hạn theo Session (lượt chơi) lưu trong JSON
-     * - An toàn: Dùng Transaction để cập nhật đồng thời số lượng và lượt dùng
+     * Giữ nguyên logic: Kiểm tra giới hạn Session, Reset Session ID, Trừ số lượng
      */
-    static async useItem(userId: number, gameType: string, itemId: number, sessionId: string) {
-        // A. Lấy vật phẩm từ túi đồ (Kèm thông tin Item gốc để lấy metadata)
-        const inventoryItem = await InventoryManager.getInventoryItem(userId, gameType, itemId);
+    static async useItem(userId: string, gameId: number, itemId: number, sessionId: string) {
+        // A. Lấy vật phẩm từ túi đồ (gameId truyền vào Manager là kiểu number theo schema)
+        const inventoryItem = await InventoryManager.getInventoryItem(userId, gameId, itemId);
 
         if (!inventoryItem) {
             throw new Error("Vật phẩm không tồn tại trong túi đồ!");
@@ -20,14 +19,14 @@ export class ItemService {
             throw new Error("Vật phẩm đã hết số lượng (Out of Stock)!");
         }
 
-        // B. Đọc Metadata từ bảng Item (Chứa luật chơi: limit_per_session)
+        // B. Đọc Metadata từ bảng Item (Json trực tiếp)
         const itemMetadata: any = inventoryItem.item.metadata || {};
-        const limitPerSession = itemMetadata.limit_per_session || 9999; // Mặc định 9999 nếu không set
+        const limitPerSession = itemMetadata.limit_per_session || 9999;
 
-        // C. Đọc Custom Data từ bảng Inventory (Chứa lịch sử dùng: session_usage_count)
+        // C. Đọc Custom Data từ bảng Inventory (Json trực tiếp)
         let customData: any = inventoryItem.custom_data || {};
 
-        // D. Logic Reset Session: Nếu Session ID gửi lên khác cái đang lưu -> Reset về 0
+        // D. Logic Reset Session
         if (customData.last_session_id !== sessionId) {
             customData.session_usage_count = 0;
             customData.last_session_id = sessionId;
@@ -39,15 +38,14 @@ export class ItemService {
         }
 
         // F. Chuẩn bị dữ liệu mới
-        customData.session_usage_count += 1; // Tăng lượt dùng
-        const newQuantity = inventoryItem.quantity - 1; // Trừ số lượng (Logic tiêu hao)
+        customData.session_usage_count += 1;
+        const newQuantity = inventoryItem.quantity - 1;
 
-        // G. GỌI TRANSACTION: Cập nhật cả 2 trường cùng lúc
-        // Đảm bảo không bao giờ bị lỗi "mất lượt mà không mất đồ"
+        // G. Cập nhật DB (Manager nhận Object Json nên cực gọn)
         await InventoryManager.updateAfterUse(inventoryItem.inventory_id, newQuantity, customData);
 
-        // H. Ghi Log
-        await InventoryManager.createLog(
+        // H. Ghi Log (Dùng ItemActionLogger qua Manager)
+        InventoryManager.createLog(
             userId, 
             inventoryItem.inventory_id, 
             'USE_ITEM', 
@@ -63,28 +61,27 @@ export class ItemService {
 
     /**
      * 2. TRAO VẬT PHẨM (GRANT ITEM)
-     * - Logic mới: Dùng Upsert để cộng dồn số lượng nếu đã có
+     * Giữ nguyên logic: Upsert cộng dồn số lượng
      */
-    static async grantItem(userId: number, gameType: string, itemId: number, quantity: number, source: string) {
-        // A. Tìm thông tin vật phẩm gốc để lấy tên loại (Category)
-        // Lưu ý: itemId ở đây là ID trong bảng Item (Catalog cũ)
+    static async grantItem(userId: string, gameId: number, itemId: number, quantity: number, source: string) {
+        // A. Tìm thông tin vật phẩm gốc
         const itemBase = await ItemManager.getItemDetail(itemId);
 
         if (!itemBase) {
             throw new Error(`Vật phẩm ID ${itemId} không tồn tại trong hệ thống!`);
         }
 
-        // B. Gọi Manager để Upsert (Nếu có rồi thì +quantity, chưa có thì tạo mới)
+        // B. Gọi Manager để Upsert (gameId kiểu number khớp schema)
         const result = await InventoryManager.grantItem(
             userId,
-            gameType,
+            gameId,
             itemBase.item_id,
             quantity,
-            itemBase.category.category_name // Lấy type từ Category
+            itemBase.category.category_name
         );
 
         // C. Ghi Log
-        await InventoryManager.createLog(
+        InventoryManager.createLog(
             userId, 
             result.inventory_id, 
             'GRANT_ITEM', 
@@ -96,10 +93,9 @@ export class ItemService {
 
     /**
      * 3. CHECK SỞ HỮU
-     * - Logic mới: Kiểm tra quantity > 0
      */
-    static async checkOwnership(userId: number, gameType: string, itemId: number) {
-        const item = await InventoryManager.getInventoryItem(userId, gameType, itemId);
+    static async checkOwnership(userId: string, gameId: number, itemId: number) {
+        const item = await InventoryManager.getInventoryItem(userId, gameId, itemId);
         
         if (item && item.quantity > 0) {
             return { hasItem: true, quantity: item.quantity, item: item };
@@ -109,18 +105,17 @@ export class ItemService {
 
     /**
      * 4. THU HỒI VẬT PHẨM (REVOKE)
-     * - Logic mới: Set quantity về 0 thay vì đổi status
      */
-    static async revokeItem(userId: number, gameType: string, itemId: number, reason: string) {
-        const item = await InventoryManager.getInventoryItem(userId, gameType, itemId);
+    static async revokeItem(userId: string, gameId: number, itemId: number, reason: string) {
+        const item = await InventoryManager.getInventoryItem(userId, gameId, itemId);
 
         if (!item) throw new Error("Người chơi không sở hữu vật phẩm này!");
 
-        // Set số lượng về 0 (Coi như xóa khỏi túi)
+        // Set số lượng về 0
         await InventoryManager.updateQuantity(item.inventory_id, 0);
 
         // Ghi log
-        await InventoryManager.createLog(
+        InventoryManager.createLog(
             userId, 
             item.inventory_id, 
             'REVOKE_ITEM', 

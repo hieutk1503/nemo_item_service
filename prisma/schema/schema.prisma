@@ -37,6 +37,7 @@ model User {
   scoreHistories       ScoreHistory[]
   subscriptions        Subscription[]
   transactions         Transaction[]
+  inventories          Inventory[]
 
   @@map("users")
 }
@@ -215,7 +216,7 @@ model Category {
 
 model Inventory {
   inventory_id      Int       @id @default(autoincrement())
-  user_id           Int
+  user_id           String
   item_type         String
   item_reference_id Int
   quantity          Int       @default(1)
@@ -225,7 +226,8 @@ model Inventory {
   expires_at        DateTime?
   acquired_at       DateTime  @default(now())
   game_id           Int
-  item              Item      @relation(fields: [item_reference_id], references: [item_id])
+  user              User     @relation(fields: [user_id], references: [msisdn])
+  item              Item     @relation(fields: [item_reference_id], references: [item_id])
 
   @@unique([user_id, game_id, item_reference_id])
   @@index([item_reference_id], map: "inventory_item_reference_id_fkey")

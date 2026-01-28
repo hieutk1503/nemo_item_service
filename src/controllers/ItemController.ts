@@ -4,36 +4,34 @@ import { InventoryManager } from "../manager/InventoryManager";
 import { Logger } from "../utils/Logger";
 import { APIResponse, HttpStatusCode } from "../utils/APIResponse";
 
-
 export class ItemController {
 
     /**
-     * Hàm hỗ trợ lấy Context từ Header để tránh lặp code
+     * Sửa lại: userId lấy từ header PHẢI là string (msisdn)
      */
     private getContext(req: Request) {
         return {
-            userId: Number(req.headers['x-user-id']),
-            gameType: req.headers['x-game-id'] as string
+            userId: req.headers['x-user-id'] as string, // KHÔNG dùng Number() ở đây
+            gameId: Number(req.headers['x-game-id'])   // gameId trong schema của bạn là Int nên dùng Number()
         };
     }
 
     /**
-     * API: Trao vật phẩm cho người chơi (Grant Item)
+     * API: Trao vật phẩm (Grant Item)
      */
     grantItem = async (req: Request, res: Response) => {
         try {
-            const { userId, gameType } = this.getContext(req);
+            const { userId, gameId } = this.getContext(req);
             const { itemId, quantity, source } = req.body;
             
-            // Validate dữ liệu Context (Header)
-            if (!userId || !gameType) {
+            if (!userId || !gameId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest("Thiếu thông tin trên Header! Cần: x-user-id, x-game-id"));
+                          .json(APIResponse.BadRequest("Thiếu Headers: x-user-id (msisdn), x-game-id (number)"));
             }
 
-            // Gọi Service xử lý
             const qty = quantity ? Number(quantity) : 1;
-            const result = await ItemService.grantItem(userId, gameType, Number(itemId), qty, source);
+            // userId truyền vào lúc này đã là string, khớp với Service
+            const result = await ItemService.grantItem(userId, gameId, Number(itemId), qty, source);
 
             Logger.info(`[GRANT] Thành công - User: ${userId}, Item: ${itemId}`);
 
@@ -52,17 +50,17 @@ export class ItemController {
      */
     useItem = async (req: Request, res: Response) => {
         try {
-            const { userId, gameType } = this.getContext(req);
+            const { userId, gameId } = this.getContext(req);
             const { itemId, sessionId } = req.body;
 
-            if (!userId || !gameType || !itemId || !sessionId) {
+            if (!userId || !gameId || !itemId || !sessionId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest("Thiếu thông tin! Check Headers (x-user-id, x-game-id) và Body (itemId, sessionId)"));
+                          .json(APIResponse.BadRequest("Thiếu thông tin! Check x-user-id, x-game-id, itemId, sessionId"));
             }
 
-            const result = await ItemService.useItem(userId, gameType, Number(itemId), sessionId);
+            const result = await ItemService.useItem(userId, gameId, Number(itemId), sessionId);
 
-            Logger.info(`[USE] Thành công - User: ${userId}, Session Usage: ${result.session_usage}`);
+            Logger.info(`[USE] Thành công - User: ${userId}, Session: ${sessionId}`);
 
             return res.status(HttpStatusCode.OK)
                       .json(APIResponse.OK("Sử dụng vật phẩm thành công", result));
@@ -85,14 +83,15 @@ export class ItemController {
      */
     getInventory = async (req: Request, res: Response) => {
         try {
-            const { userId, gameType } = this.getContext(req);
+            const { userId, gameId } = this.getContext(req);
 
-            if (!userId || !gameType) {
+            if (!userId || !gameId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
                           .json(APIResponse.BadRequest("Thiếu thông tin Context trên Header!"));
             }
 
-            const data = await InventoryManager.findByUserId(userId, gameType);
+            // Gọi thẳng sang Manager để lấy danh sách
+            const data = await InventoryManager.findByUserId(userId, gameId);
 
             Logger.info(`[INVENTORY] Fetch thành công cho User: ${userId}`);
 
@@ -107,19 +106,19 @@ export class ItemController {
     }
 
     /**
-     * API: Kiểm tra quyền sở hữu (Check Ownership
+     * API: Kiểm tra quyền sở hữu
      */
     checkOwnership = async (req: Request, res: Response) => {
         try {
-            const { userId, gameType } = this.getContext(req);
+            const { userId, gameId } = this.getContext(req);
             const { itemId } = req.body;
 
-            if (!userId || !gameType || !itemId) {
+            if (!userId || !gameId || !itemId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
                           .json(APIResponse.BadRequest("Thiếu thông tin kiểm tra!"));
             }
 
-            const result = await ItemService.checkOwnership(userId, gameType, Number(itemId));
+            const result = await ItemService.checkOwnership(userId, gameId, Number(itemId));
 
             return res.status(HttpStatusCode.OK)
                       .json(APIResponse.OK("Kiểm tra thành công", result));
@@ -136,15 +135,15 @@ export class ItemController {
      */
     revokeItem = async (req: Request, res: Response) => {
         try {
-            const { userId, gameType } = this.getContext(req);
+            const { userId, gameId } = this.getContext(req);
             const { itemId, reason } = req.body;
 
-            if (!userId || !gameType || !itemId) {
+            if (!userId || !gameId || !itemId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
                           .json(APIResponse.BadRequest("Thiếu thông tin thu hồi!"));
             }
 
-            const result = await ItemService.revokeItem(userId, gameType, Number(itemId), reason || "Admin Revoke");
+            const result = await ItemService.revokeItem(userId, gameId, Number(itemId), reason || "Admin Revoke");
 
             Logger.info(`[REVOKE] User: ${userId} bị thu hồi Item: ${itemId}`);
 
