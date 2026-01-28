@@ -8,59 +8,47 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// --- CORE MODULE ---
-
 model Game {
-  id       Int     @id @default(autoincrement())
-  code     String  @unique @db.VarChar(50) // Key quan trọng để link sang các bảng khác
-  name     String  @db.VarChar(100)
-  baseUrl  String  @db.VarChar(255)
-  isActive Boolean @default(true)
-
-  plans        Plan[]
-  transactions Transaction[]
-
-  // Quan hệ ngược (Back-relation)
+  id                   Int                      @id @default(autoincrement())
+  code                 String                   @unique @db.VarChar(50)
+  name                 String                   @db.VarChar(100)
+  baseUrl              String                   @db.VarChar(255)
+  isActive             Boolean                  @default(true)
   leaderboardConfigs   LeaderboardPrizeConfig[]
   leaderboardSnapshots LeaderboardSnapshot[]
-  scoreHistories       ScoreHistory[]
   luckyboxConfigs      LuckyboxPrizeConfig[]
+  plans                Plan[]
   rewardHistories      RewardHistory[]
+  scoreHistories       ScoreHistory[]
+  transactions         Transaction[]
 
   @@map("games")
 }
 
 model User {
-  msisdn    String   @id @db.VarChar(20)
-  username  String?  @db.VarChar(100)
-  fullName  String?  @db.VarChar(100)
-  lang      String   @default("en") @db.VarChar(10)
-  lastLogin DateTime @default(now())
-  createdAt DateTime @default(now())
-
-  subscriptions Subscription[]
-  transactions  Transaction[]
-
-  // Quan hệ ngược
+  msisdn               String                @id @db.VarChar(20)
+  username             String?               @db.VarChar(100)
+  fullName             String?               @db.VarChar(100)
+  lang                 String                @default("en") @db.VarChar(10)
+  lastLogin            DateTime              @default(now())
+  createdAt            DateTime              @default(now())
   leaderboardSnapshots LeaderboardSnapshot[]
-  scoreHistories       ScoreHistory[]
   rewardHistories      RewardHistory[]
+  scoreHistories       ScoreHistory[]
+  subscriptions        Subscription[]
+  transactions         Transaction[]
 
   @@map("users")
 }
 
-// --- SUBSCRIPTION MODULE ---
-
 model Plan {
-  id     Int @id @default(autoincrement())
-  gameId Int
-
-  name          String  @db.VarChar(100)
-  price         Decimal @db.Decimal(10, 2)
+  id            Int            @id @default(autoincrement())
+  gameId        Int
+  name          String         @db.VarChar(100)
+  price         Decimal        @db.Decimal(10, 2)
   duration_days Int
-  packageCode   String  @db.VarChar(50)
-  description   String? @db.Text
-
+  packageCode   String         @db.VarChar(50)
+  description   String?        @db.Text
   benefits      PlanBenefit[]
   game          Game           @relation(fields: [gameId], references: [id])
   subscriptions Subscription[]
@@ -76,25 +64,22 @@ model PlanBenefit {
   benefit_ref_id String @db.VarChar(100)
   quantity       Int
   grant_type     String @db.VarChar(50)
-
-  plan Plan @relation(fields: [planId], references: [id])
+  plan           Plan   @relation(fields: [planId], references: [id])
 
   @@index([planId], map: "plan_benefits_planId_fkey")
   @@map("plan_benefits")
 }
 
 model Subscription {
-  id     Int    @id @default(autoincrement())
-  userId String @db.VarChar(20)
-  planId Int
-
+  id        Int       @id @default(autoincrement())
+  userId    String    @db.VarChar(20)
+  planId    Int
   status    Int       @default(0)
   startDate DateTime  @default(now())
   endDate   DateTime?
   refId     String?   @unique
-
-  plan Plan @relation(fields: [planId], references: [id])
-  user User @relation(fields: [userId], references: [msisdn])
+  plan      Plan      @relation(fields: [planId], references: [id])
+  user      User      @relation(fields: [userId], references: [msisdn])
 
   @@index([planId], map: "subscriptions_planId_fkey")
   @@index([userId], map: "subscriptions_userId_fkey")
@@ -102,26 +87,22 @@ model Subscription {
 }
 
 model Transaction {
-  id       Int     @id @default(autoincrement())
-  refId    String? @unique @db.VarChar(100)
-  msisdn   String  @db.VarChar(20)
-  gameCode String  @db.VarChar(50)
-
+  id        Int      @id @default(autoincrement())
+  msisdn    String   @db.VarChar(20)
+  gameCode  String   @db.VarChar(50)
   action    String
   status    Int
-  amount    Decimal? @db.Decimal(10, 2)
   payload   String?  @db.Text
   createdAt DateTime @default(now())
-
-  game Game @relation(fields: [gameCode], references: [code])
-  user User @relation(fields: [msisdn], references: [msisdn])
+  amount    Decimal? @db.Decimal(10, 2)
+  refId     String?  @unique @db.VarChar(100)
+  game      Game     @relation(fields: [gameCode], references: [code])
+  user      User     @relation(fields: [msisdn], references: [msisdn])
 
   @@index([gameCode, createdAt])
   @@index([msisdn], map: "transactions_msisdn_fkey")
   @@map("transactions")
 }
-
-// --- GAMIFICATION MODULE (ĐÃ THÊM @relation CÒN THIẾU) ---
 
 model LeaderboardPrizeConfig {
   id         Int        @id @default(autoincrement())
@@ -132,9 +113,7 @@ model LeaderboardPrizeConfig {
   rewardId   String     @map("reward_id") @db.VarChar(30)
   quantity   Int
   isActive   Boolean    @default(true) @map("is_active")
-
-  // [FIX] Thêm dòng này để kết nối với bảng Game
-  game Game @relation(fields: [gameId], references: [code])
+  game       Game       @relation(fields: [gameId], references: [code])
 
   @@index([gameId, isActive])
   @@map("leaderboard_prize_config")
@@ -149,13 +128,12 @@ model LeaderboardSnapshot {
   totalScore BigInt   @map("total_score")
   rankScore  Int      @map("rank_score")
   createdAt  DateTime @default(now()) @map("created_at")
-
-  // [FIX] Thêm kết nối với Game và User
-  game Game @relation(fields: [gameId], references: [code])
-  user User @relation(fields: [userId], references: [msisdn])
+  game       Game     @relation(fields: [gameId], references: [code])
+  user       User     @relation(fields: [userId], references: [msisdn])
 
   @@unique([gameId, seasonId, userId])
   @@index([gameId, seasonId, rankScore])
+  @@index([userId], map: "leaderboard_snapshot_user_id_fkey")
   @@map("leaderboard_snapshot")
 }
 
@@ -167,12 +145,11 @@ model ScoreHistory {
   scorePlus  Int      @map("score_plus")
   totalScore BigInt   @map("total_score")
   createdAt  DateTime @default(now()) @map("created_at")
-
-  // [FIX] Thêm kết nối với Game và User
-  game Game @relation(fields: [gameId], references: [code])
-  user User @relation(fields: [userId], references: [msisdn])
+  game       Game     @relation(fields: [gameId], references: [code])
+  user       User     @relation(fields: [userId], references: [msisdn])
 
   @@index([userId, gameId])
+  @@index([gameId], map: "score_history_game_id_fkey")
   @@map("score_history")
 }
 
@@ -184,9 +161,7 @@ model LuckyboxPrizeConfig {
   quantity   Int
   weight     Float
   isActive   Boolean    @default(true) @map("is_active")
-
-  // [FIX] Thêm kết nối với Game
-  game Game @relation(fields: [gameId], references: [code])
+  game       Game       @relation(fields: [gameId], references: [code])
 
   @@index([gameId, isActive])
   @@map("luckybox_prize_config")
@@ -202,13 +177,11 @@ model RewardHistory {
   rewardId   String     @map("reward_id") @db.VarChar(30)
   quantity   Int
   createdAt  DateTime   @default(now()) @map("created_at")
-
-  // [FIX] Thêm kết nối với Game và User
-  // Lưu ý: bảng Game dùng cột 'code' làm key
-  game Game @relation(fields: [gameId], references: [code])
-  user User @relation(fields: [userId], references: [msisdn])
+  game       Game       @relation(fields: [gameId], references: [code])
+  user       User       @relation(fields: [userId], references: [msisdn])
 
   @@index([userId, gameId])
+  @@index([gameId], map: "reward_history_game_id_fkey")
   @@map("reward_history")
 }
 
@@ -221,7 +194,7 @@ model Item {
   item_id     Int         @id @default(autoincrement())
   item_name   String
   max_stack   Int         @default(999)
-  metadata    String?     @db.LongText
+  metadata    Json?
   price       Decimal     @db.Decimal(10, 2)
   inventories Inventory[]
   category    Category    @relation(fields: [category_id], references: [category_id])
@@ -243,18 +216,18 @@ model Category {
 model Inventory {
   inventory_id      Int       @id @default(autoincrement())
   user_id           Int
-  game_type         String
   item_type         String
   item_reference_id Int
   quantity          Int       @default(1)
   current_level     Int       @default(1)
   is_equipped       Boolean   @default(false)
-  custom_data       Json?     @db.Json
+  custom_data       Json?
   expires_at        DateTime?
   acquired_at       DateTime  @default(now())
+  game_id           Int
   item              Item      @relation(fields: [item_reference_id], references: [item_id])
 
-  @@unique([user_id, game_type, item_reference_id])
+  @@unique([user_id, game_id, item_reference_id])
   @@index([item_reference_id], map: "inventory_item_reference_id_fkey")
   @@map("inventory")
 }
@@ -298,6 +271,17 @@ model transaction_log {
   amount     Decimal                @db.Decimal(19, 4)
   status     transaction_log_status
   created_at DateTime               @default(now())
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  fullName  String?
+  role      String   @default("STAFF")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
 }
 
 enum RewardType {
