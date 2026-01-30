@@ -108,3 +108,4 @@ export const Logger = createServiceLogger('CoreSystem_Log', 'CoreSystem_Log', fa
 // Log cho module prize
 export const PrizeActionLogger = createServiceLogger('PrizeAction_Log', 'prize_actions', true);
 export const ItemActionLogger = createServiceLogger('ItemAction_Log', 'item_actions', true);
+export const OrderActionLogger = createServiceLogger('OrderAction_Log', 'order_actions', true);

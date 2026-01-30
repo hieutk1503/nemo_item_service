@@ -225,7 +225,7 @@ model Inventory {
   custom_data       Json?
   expires_at        DateTime?
   acquired_at       DateTime  @default(now())
-  game_id           Int
+  game_id           String
   user              User     @relation(fields: [user_id], references: [msisdn])
   item              Item     @relation(fields: [item_reference_id], references: [item_id])
 
@@ -234,18 +234,11 @@ model Inventory {
   @@map("inventory")
 }
 
-model order_log {
-  id         Int      @id @default(autoincrement())
-  order_id   Int
-  game_id    Int
-  old_status String?
-  new_status String?
-  created_at DateTime @default(now())
-}
+
 
 model orders {
   id             Int                    @id @default(autoincrement())
-  game_id        Int
+  game_id        String
   user_id        String                 @db.VarChar(20)
   total_amount   Decimal                @db.Decimal(19, 4)
   status         orders_status          @default(PENDING)
@@ -266,14 +259,7 @@ model orders_item {
   @@index([order_id], map: "orders_item_order_id_fkey")
 }
 
-model transaction_log {
-  id         Int                    @id @default(autoincrement())
-  order_id   Int
-  game_id    Int
-  amount     Decimal                @db.Decimal(19, 4)
-  status     transaction_log_status
-  created_at DateTime               @default(now())
-}
+
 
 model Admin {
   id        Int      @id @default(autoincrement())

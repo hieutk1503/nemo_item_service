@@ -3,12 +3,16 @@ import { ItemActionLogger } from '../utils/Logger';
 
 export class InventoryManager {
     
-    static async getInventoryItem(userId: string, gameId: number, itemId: number) {
+    /**
+     * 1. Tìm vật phẩm cụ thể
+     * gameId: string (Game Code)
+     */
+    static async getInventoryItem(userId: string, gameId: string, itemId: number) {
         return await prisma.inventory.findUnique({
             where: {
                 user_id_game_id_item_reference_id: {
                     user_id: userId,
-                    game_id: gameId,
+                    game_id: gameId, // Kiểu String (Ví dụ: "NEMO_FARM")
                     item_reference_id: itemId
                 }
             },
@@ -20,7 +24,10 @@ export class InventoryManager {
         });
     }
 
-    static async findByUserId(userId: string, gameId: number) {
+    /**
+     * 2. Lấy danh sách túi đồ
+     */
+    static async findByUserId(userId: string, gameId: string) {
         return await prisma.inventory.findMany({
             where: { 
                 user_id: userId, 
@@ -34,7 +41,10 @@ export class InventoryManager {
         });
     }
 
-    static async grantItem(userId: string, gameId: number, itemId: number, qty: number, itemType: string) {
+    /**
+     * 3. Trao vật phẩm (Upsert)
+     */
+    static async grantItem(userId: string, gameId: string, itemId: number, qty: number, itemType: string) {
         return await prisma.inventory.upsert({
             where: {
                 user_id_game_id_item_reference_id: {
@@ -52,11 +62,16 @@ export class InventoryManager {
                 item_reference_id: itemId,
                 quantity: qty,
                 item_type: itemType,
+                current_level: 1,
+                is_equipped: false,
                 custom_data: { session_usage_count: 0 }
             }
         });
     }
 
+    /**
+     * 4. Cập nhật sau khi dùng vật phẩm
+     */
     static async updateAfterUse(inventoryId: number, newQty: number, newCustomData: any) {
         return await prisma.inventory.update({
             where: { inventory_id: inventoryId },
@@ -67,6 +82,9 @@ export class InventoryManager {
         });
     }
 
+    /**
+     * 5. Cập nhật số lượng
+     */
     static async updateQuantity(inventoryId: number, newQty: number) {
         return await prisma.inventory.update({
             where: { inventory_id: inventoryId },
@@ -74,6 +92,9 @@ export class InventoryManager {
         });
     }
 
+    /**
+     * 6. Ghi log qua Winston
+     */
     static createLog(userId: string, inventoryId: number, action: string, note?: string) {
         ItemActionLogger.info(action, {
             userId: userId,

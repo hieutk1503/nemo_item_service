@@ -7,12 +7,12 @@ import { APIResponse, HttpStatusCode } from "../utils/APIResponse";
 export class ItemController {
 
     /**
-     * Sửa lại: userId lấy từ header PHẢI là string (msisdn)
+     * Sửa lại: Cả userId (msisdn) và gameId (game_code) đều dùng String
      */
     private getContext(req: Request) {
         return {
-            userId: req.headers['x-user-id'] as string, // KHÔNG dùng Number() ở đây
-            gameId: Number(req.headers['x-game-id'])   // gameId trong schema của bạn là Int nên dùng Number()
+            userId: req.headers['x-user-id'] as string,
+            gameId: req.headers['x-game-id'] as string // Dùng String để khớp với Game Code trong Schema
         };
     }
 
@@ -26,14 +26,14 @@ export class ItemController {
             
             if (!userId || !gameId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest("Thiếu Headers: x-user-id (msisdn), x-game-id (number)"));
+                          .json(APIResponse.BadRequest("Thiếu Headers: x-user-id (msisdn), x-game-id (game_code)"));
             }
 
             const qty = quantity ? Number(quantity) : 1;
-            // userId truyền vào lúc này đã là string, khớp với Service
+            // gameId lúc này truyền sang Service là string
             const result = await ItemService.grantItem(userId, gameId, Number(itemId), qty, source);
 
-            Logger.info(`[GRANT] Thành công - User: ${userId}, Item: ${itemId}`);
+            Logger.info(`[GRANT] Thành công - User: ${userId}, Game: ${gameId}, Item: ${itemId}`);
 
             return res.status(HttpStatusCode.CREATED)
                       .json(APIResponse.Created("Trao vật phẩm thành công", result));
@@ -60,7 +60,7 @@ export class ItemController {
 
             const result = await ItemService.useItem(userId, gameId, Number(itemId), sessionId);
 
-            Logger.info(`[USE] Thành công - User: ${userId}, Session: ${sessionId}`);
+            Logger.info(`[USE] Thành công - User: ${userId}, Game: ${gameId}, Session: ${sessionId}`);
 
             return res.status(HttpStatusCode.OK)
                       .json(APIResponse.OK("Sử dụng vật phẩm thành công", result));
@@ -90,10 +90,9 @@ export class ItemController {
                           .json(APIResponse.BadRequest("Thiếu thông tin Context trên Header!"));
             }
 
-            // Gọi thẳng sang Manager để lấy danh sách
             const data = await InventoryManager.findByUserId(userId, gameId);
 
-            Logger.info(`[INVENTORY] Fetch thành công cho User: ${userId}`);
+            Logger.info(`[INVENTORY] Fetch thành công cho User: ${userId} tại Game: ${gameId}`);
 
             return res.status(HttpStatusCode.OK)
                       .json(APIResponse.OK("Lấy danh sách túi đồ thành công", data));
@@ -145,7 +144,7 @@ export class ItemController {
 
             const result = await ItemService.revokeItem(userId, gameId, Number(itemId), reason || "Admin Revoke");
 
-            Logger.info(`[REVOKE] User: ${userId} bị thu hồi Item: ${itemId}`);
+            Logger.info(`[REVOKE] User: ${userId}, Game: ${gameId} bị thu hồi Item: ${itemId}`);
 
             return res.status(HttpStatusCode.OK)
                       .json(APIResponse.OK("Thu hồi vật phẩm thành công", result));
