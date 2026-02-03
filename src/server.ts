@@ -26,7 +26,7 @@ const startServer = async () => {
 
         await connectMongoDB();
 
-        await connectRedis();
+        // await connectRedis();
 
         app.listen(PORT, () =>{
             console.log(`Server đang chạy tại http://localhost:${PORT}`);

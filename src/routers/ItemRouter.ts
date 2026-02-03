@@ -27,7 +27,7 @@ export default createRouter(controller, [
         path: '/inventory',    
         handler: 'getInventory', 
         middlewares: [
-            JwtAuthMiddle // Nên có để bảo vệ túi đồ của người dùng
+            //JwtAuthMiddle // Nên có để bảo vệ túi đồ của người dùng
         ]
     },
 
@@ -39,7 +39,7 @@ export default createRouter(controller, [
         path: '/check-ownership',
         handler: 'checkOwnership',
         middlewares: [
-            JwtAuthMiddle,
+            //JwtAuthMiddle,
             ValidatorMiddle(CheckOwnershipRequest) 
         ]
     },
@@ -50,7 +50,7 @@ export default createRouter(controller, [
         path: '/grant',
         handler: 'grantItem',
         middlewares: [
-            JwtAuthMiddle,                    
+            //JwtAuthMiddle,                    
             ValidatorMiddle(GrantItemRequest) 
         ]
     },
@@ -61,7 +61,7 @@ export default createRouter(controller, [
         path: '/use',
         handler: 'useItem',
         middlewares: [
-            JwtAuthMiddle,                  
+            //JwtAuthMiddle,                  
             ValidatorMiddle(UseItemRequest) 
         ]
     },
@@ -72,7 +72,7 @@ export default createRouter(controller, [
         path: '/revoke',
         handler: 'revokeItem',
         middlewares: [
-            JwtAuthMiddle,
+            //JwtAuthMiddle,
             ValidatorMiddle(RevokeItemRequest)
         ]
     }

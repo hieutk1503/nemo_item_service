@@ -8,7 +8,7 @@ import { Item } from "@prisma/client";
  * ===============================
  */
 export interface StoreCacheData {
-    gameId: string; // ✅ Đổi thành string để khớp Schema
+    gameId: string; 
     items: Item[];
 }
 
@@ -31,7 +31,7 @@ class StoreManagerClass extends BaseRedisManager<StoreCacheData> {
     // 📦 PRODUCT
     // ======================================================
 
-    async findItemsByGameId(gameId: string) { // ✅ Nhận gameId là string
+    async findItemsByGameId(gameId: string) { 
         const key = gameId;
 
         // 1. Kiểm tra Redis cache
@@ -81,7 +81,7 @@ class StoreManagerClass extends BaseRedisManager<StoreCacheData> {
     /**
      * Đếm số đơn hàng (userId & gameId đều là string)
      */
-    async countOrdersByUser(userId: string, gameId: string) { // ✅ gameId: string
+    async countOrdersByUser(userId: string, gameId: string) { 
         return prisma.orders.count({
             where: {
                 user_id: userId, // Khớp msisdn
@@ -95,7 +95,7 @@ class StoreManagerClass extends BaseRedisManager<StoreCacheData> {
      */
     async findOrdersByUser(
         userId: string,
-        gameId: string, // ✅ gameId: string
+        gameId: string, 
         skip: number,
         take: number
     ) {

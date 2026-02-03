@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
-// Import các Service tương ứng
-import productService from '../services/ProductService';
+// ✅ Import các Service & Manager nghiệp vụ
 import transactionService from '../services/TransactionService';
 import orderService from '../services/OrderService';
+import storeManager from '../manager/StoreManager';
+
 // Import tiện ích hệ thống
 import { Logger } from '../utils/Logger';
 import { APIResponse, HttpStatusCode } from '../utils/APIResponse';
@@ -10,29 +11,18 @@ import { APIResponse, HttpStatusCode } from '../utils/APIResponse';
 class StoreController {
 
     /**
-     * API: Lấy danh sách sản phẩm
-     * Method: GET
+     * API: Lấy danh sách sản phẩm (Dùng StoreManager có Cache)
+     * Method: GET /api/store/products
      */
     getList = async (req: Request, res: Response) => {
         try {
-            const { gameId, keyword } = req.query;
-            const userData = (req as any).user; 
-
-            // ✅ Truyền trực tiếp gameId kiểu String theo Schema mới
-            const result = await productService.getProduct(
-                String(gameId), 
-                { keyword: keyword ? String(keyword) : undefined }, 
-                userData
-            );
-
-            if (!result.success) {
-                Logger.error("Lỗi lấy danh sách SP: " + result.message);
-                return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest(result.message));
-            }
+            const gameId = req.header('x-game-id') || req.query.gameId;
+            
+            // Gọi StoreManager để lấy danh sách Item gốc (Có Redis)
+            const items = await storeManager.findItemsByGameId(String(gameId));
 
             return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK(result.message, result.data));
+                      .json(APIResponse.OK("Lấy danh sách vật phẩm thành công", items));
 
         } catch (error: any) {
             Logger.error(`System Error in getList: ${error.message}`);
@@ -43,27 +33,22 @@ class StoreController {
 
     /**
      * API: Lấy chi tiết sản phẩm
-     * Method: GET
+     * Method: GET /api/store/product/:id
      */
     getDetail = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
-            const { gameId } = req.query;
-            const userData = (req as any).user;
+            
+            // Gọi StoreManager lấy thông tin Item
+            const item = await storeManager.findItemById(Number(id));
 
-            const result = await productService.getProductDetail(
-                String(gameId), // ✅ gameId là String
-                Number(id),     // ✅ item_id vẫn là Number (Autoincrement)
-                userData
-            );
-
-            if (!result.success) {
-                return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest(result.message));
+            if (!item) {
+                return res.status(HttpStatusCode.NOT_FOUND)
+                          .json(APIResponse.NotFound("Không tìm thấy vật phẩm này"));
             }
 
             return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK(result.message, result.data));
+                      .json(APIResponse.OK("Thành công", item));
 
         } catch (error: any) {
             Logger.error(`System Error in getDetail: ${error.message}`);
@@ -73,34 +58,34 @@ class StoreController {
     }
 
     /**
-     * API: Mua vật phẩm
-     * Method: POST
+     * API: Mua vật phẩm (Hợp nhất Order + Inventory qua TransactionService)
+     * Method: POST /api/store/purchase
      */
     buyItem = async (req: Request, res: Response) => {
         try {
-            const { gameId, productId } = req.body;
-            const userData = (req as any).user;
+            const userId = req.header('x-user-id');
+            const gameId = req.header('x-game-id');
+            const { productId } = req.body;
 
-            if (!userData || !userData.id) {
+            if (!userId || userId === "Guest") {
                 return res.status(HttpStatusCode.UNAUTHORIZED)
-                          .json(APIResponse.Unauthorized());
+                          .json(APIResponse.Unauthorized("Vui lòng gửi Header x-user-id hợp lệ"));
             }
 
+            // ✅ Gọi TransactionService: Xử lý trừ tiền (giả định), tạo Order và Grant Item
             const result = await transactionService.purchaseItem(
-                String(gameId),    // ✅ gameId là String
-                Number(productId), // ✅ productId là Number
-                userData
+                String(gameId),
+                Number(productId),
+                { id: String(userId), name: 'User_Customer' } // Mock userData
             );
 
             if (!result.success) {
-                Logger.error(`User ${userData.id} mua thất bại: ${result.message}`);
                 return res.status(HttpStatusCode.BAD_REQUEST)
                           .json(APIResponse.BadRequest(result.message));
             }
 
-            Logger.info(`User ${userData.id} mua thành công item ${productId}`);
             return res.status(HttpStatusCode.CREATED)
-                      .json(APIResponse.Created(result.message, result.data));
+                      .json(APIResponse.Created("Giao dịch thành công", result.data));
 
         } catch (error: any) {
             Logger.error(`System Error in buyItem: ${error.message}`);
@@ -110,23 +95,19 @@ class StoreController {
     }
 
     /**
-     * API: Lấy lịch sử đơn hàng
-     * Method: GET
+     * API: Lấy lịch sử mua sắm (Dùng OrderService để lấy đúng logic phân trang)
+     * Method: GET /api/store/history
      */
     getHistory = async (req: Request, res: Response) => {
         try {
-            const { gameId, page, limit } = req.query;
-            const userData = (req as any).user;
-
-            if (!userData || !userData.id) {
-                return res.status(HttpStatusCode.UNAUTHORIZED)
-                          .json(APIResponse.Unauthorized());
-            }
+            const userId = req.header('x-user-id');
+            const gameId = req.header('x-game-id');
+            const { page, limit } = req.query;
 
             const result = await orderService.getOrderHistory(
-                String(userData.id), // ✅ msisdn là String
-                String(gameId),      // ✅ gameId là String
-                userData,
+                String(userId),
+                String(gameId),
+                { id: String(userId), name: 'Customer' },
                 Number(page) || 1,
                 Number(limit) || 10
             );
