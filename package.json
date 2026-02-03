@@ -48,6 +48,7 @@
     "winston-mongodb": "^7.0.1"
   },
   "prisma": {
-    "schema": "prisma/schema"
+    "schema": "prisma/schema",
+    "seed": "ts-node prisma/seed.ts"
   }
 }

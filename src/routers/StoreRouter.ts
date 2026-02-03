@@ -34,7 +34,7 @@ StoreRouter.use('/', createRouter(storeController, [
         path: '/purchase',
         handler: 'buyItem',
         middlewares: [
-            JwtAuthMiddle,
+            //JwtAuthMiddle,
             ValidatorMiddle(BuyItemRequest)
         ]
     },
@@ -45,7 +45,7 @@ StoreRouter.use('/', createRouter(storeController, [
         path: '/history',
         handler: 'getHistory',
         middlewares: [
-            JwtAuthMiddle
+            //  JwtAuthMiddle
         ]
     }
 ]));
