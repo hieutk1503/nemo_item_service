@@ -152,6 +152,7 @@ export class PrizeService {
 
     
     // CHỐT SỔ MÙA GIẢI
+    // CHỐT SỔ MÙA GIẢI
     async finalizeSeason(gameId: string, seasonId: number) {
         try {
             PrizeActionLogger.info(`Bắt đầu xử lý chốt sổ game ${gameId} mùa ${seasonId}`, {
@@ -192,6 +193,7 @@ export class PrizeService {
                 const userInfo = userInfos.find(u => u.username === userId);
                 const userNameDisplay = userInfo ?.username ?? userId;
 
+                // Tìm quà theo rank
                 // Tìm quà theo rank
                 const config = prizeConfigs.find(c => rank >= c.rankFrom && rank <= c.rankTo);
 
@@ -260,12 +262,15 @@ export class PrizeService {
 
             return { 
                 success: true, 
-                message: `Chốt sổ thành công! Lưu ${snapshots.length} user. Trao thưởng cho ${countRewarded} user.` 
+                message: `Chốt sổ thành công! Trao thưởng cho ${countRewarded} user.` 
             };
 
         } catch (error: any) {
             PrizeActionLogger.error("Lỗi finalizeSeason: " + error.message, { gameId, seasonId, stack: error.stack });
+            PrizeActionLogger.error("Lỗi finalizeSeason: " + error.message, { gameId, seasonId, stack: error.stack });
             return { success: false, message: error.message };
         }
     }
+
+   
 }

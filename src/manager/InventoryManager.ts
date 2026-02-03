@@ -44,30 +44,33 @@ export class InventoryManager {
     /**
      * 3. Trao vật phẩm (Upsert)
      */
-    static async grantItem(userId: string, gameId: string, itemId: number, qty: number, itemType: string) {
-        return await prisma.inventory.upsert({
-            where: {
-                user_id_game_id_item_reference_id: {
-                    user_id: userId,
-                    game_id: gameId,
-                    item_reference_id: itemId
-                }
-            },
-            update: { 
-                quantity: { increment: qty } 
-            },
-            create: {
+    // src/manager/InventoryManager.ts
+
+static async grantItem(userId: string, gameId: string, itemId: number, qty: number, itemType: string) {
+    return await prisma.inventory.upsert({
+        where: {
+            // Tên index mặc định của Prisma khi dùng @@unique([user_id, game_id, item_reference_id])
+            user_id_game_id_item_reference_id: {
                 user_id: userId,
                 game_id: gameId,
-                item_reference_id: itemId,
-                quantity: qty,
-                item_type: itemType,
-                current_level: 1,
-                is_equipped: false,
-                custom_data: { session_usage_count: 0 }
+                item_reference_id: itemId
             }
-        });
-    }
+        },
+        update: { 
+            quantity: { increment: qty } 
+        },
+        create: {
+            user_id: userId,
+            game_id: gameId,
+            item_reference_id: itemId,
+            quantity: qty,
+            item_type: itemType, // Sẽ lưu Category Name vào đây
+            current_level: 1,
+            is_equipped: false,
+            custom_data: { session_usage_count: 0 }
+        }
+    });
+}
 
     /**
      * 4. Cập nhật sau khi dùng vật phẩm
