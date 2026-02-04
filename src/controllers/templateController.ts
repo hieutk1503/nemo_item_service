@@ -138,6 +138,7 @@ import { APIResponse, HttpStatusCode } from "../Utils/APIResponse"; */
                           .json(APIResponse.BadRequest("User ID không hợp lệ"));
             }
 
+            
             const data = await this._service.getbyUserid(userId);
 
             if (!data.success) {

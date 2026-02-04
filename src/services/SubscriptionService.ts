@@ -15,10 +15,10 @@ export class SubscriptionService {
       });
 
       if (!plan) return ServiceResponse.Fail("Plan not found");
-
+      
       const coinBenefit = plan.benefits.find(b => b.benefit_type === 'GOLD') || plan.benefits[0];
-
-      const gwResult = await CoreGateway.initSubscription({
+      // --- GIẢ LẬP CORE GW: KHÔNG GỌI SANG NGOÀI ---
+      /*const gwResult = await CoreGateway.initSubscription({
         msisdn: msisdn,
         packageCode: plan.packageCode,
         packageName: plan.name,
@@ -26,21 +26,25 @@ export class SubscriptionService {
         cycle: plan.duration_days,
         coinAmount: coinBenefit ? coinBenefit.quantity : 0,
         coinUnit: coinBenefit ? coinBenefit.benefit_type : "GOLD"
-      });
-
+      });*/
+      // Tạo kết quả giả để lưu vào Database
+      const mockGwResult = {
+        generatedRefId: "MOCK_REF_" + Date.now(),
+        data: { status: "INITIATED", msisdn: msisdn, planName: plan.name }
+      };
       await prisma.transaction.create({
         data: {
-          refId: gwResult.generatedRefId,
+          refId: mockGwResult.generatedRefId,
           msisdn: msisdn,
           gameCode: plan.game.code,
           action: "REGISTER",
           amount: plan.price,
           status: 2, // 2 = Pending
-          payload: JSON.stringify(gwResult.data)
+          payload: JSON.stringify(mockGwResult.data)
         }
       });
 
-      return ServiceResponse.Success({ refId: gwResult.generatedRefId }, "Thành công");
+      return ServiceResponse.Success({ refId: mockGwResult.generatedRefId }, "Thành công");
 
     } catch (error) {
       console.error("[SubService] Init Error:", error);
@@ -54,19 +58,21 @@ export class SubscriptionService {
   static async confirmOTP(payload: any) {
     try {
       // 1. Gọi sang nhà mạng để xác thực mã OTP
-      const gwResult = await CoreGateway.confirmSubscription(payload);
-
-      if (gwResult.success) {
+      //const gwResult = await CoreGateway.confirmSubscription(payload);
+      //chế để test
+      const mockGwResult = { success: true, data: { status: "SUCCESS", message: "OTP Verified" } };
+      if (mockGwResult.success) {
         // 2. Nếu OTP đúng, chủ động cập nhật trạng thái Transaction lên Thành công ngay
         await prisma.transaction.update({
           where: { refId: payload.refId },
           data: { status: 1 } // 1 = Success
         });
         
-        return ServiceResponse.Success(gwResult.data, "Xác nhận OTP thành công");
+        return ServiceResponse.Success(mockGwResult.data, "Xác nhận OTP thành công");
       }
 
-      return ServiceResponse.Fail(gwResult.message || "Xác nhận OTP thất bại", 400);
+      //return ServiceResponse.Fail(gwResult.message || "Xác nhận OTP thất bại", 400);
+      return ServiceResponse.Fail("Xác nhận OTP thất bại", 400);
     } catch (error) {
       console.error("[SubService] Confirm OTP Error:", error);
       return ServiceResponse.Fail("Lỗi hệ thống khi xác nhận OTP");
@@ -143,6 +149,34 @@ export class SubscriptionService {
     } catch (error) {
       console.error("[SubService] Transaction Error:", error);
       return ServiceResponse.Fail("Callback Processing Error");
+    }
+  }
+  /**
+   * API: Lấy danh sách gói cước (Dùng cho trang Shop)
+   */
+  static async getPlans() {
+    try {
+      const plans = await prisma.plan.findMany({
+        include: { benefits: true }
+      });
+      return ServiceResponse.Success(plans, "Lấy danh sách gói cước thành công");
+    } catch (error) {
+      return ServiceResponse.Fail("Lỗi khi lấy danh sách gói cước");
+    }
+  }
+
+  /**
+   * API: Lấy lịch sử giao dịch của tôi
+   */
+  static async getMyTransactions(msisdn: string) {
+    try {
+      const transactions = await prisma.transaction.findMany({
+        where: { msisdn },
+        orderBy: { createdAt: 'desc' }
+      });
+      return ServiceResponse.Success(transactions, "Lấy lịch sử giao dịch thành công");
+    } catch (error) {
+      return ServiceResponse.Fail("Lỗi khi lấy lịch sử giao dịch");
     }
   }
 }

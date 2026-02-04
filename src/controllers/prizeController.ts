@@ -13,39 +13,47 @@ export class PrizeController {
         return phone.replace(/.{4}$/, '****');
     }
 
+    private getUserIdFromToken(req: any): string | null {
+        if (!req.user) return null;
+        return req.user.msisdn || req.user.userId || null;
+    }
+
     // Handler: Lấy Bảng Xếp Hạng
     getLeaderboard = async (req: Request, res: Response) => {
         try {
             const { gameId, seasonId } = req.query;
-            const userId = req.query.userId as string || "guest";
+            
+            // 1. Ưu tiên lấy ID từ Token nếu đã đăng nhập, nếu không thì lấy query, cuối cùng là guest
+            let userId = this.getUserIdFromToken(req);
+            if (!userId) {
+                userId = req.query.userId as string || "guest";
+            }
 
             if (!gameId || !seasonId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
                           .json(APIResponse.BadRequest("Thiếu gameId hoặc seasonId"));
             }
 
-            // 1. Lấy Top 10 từ Redis
+            // 2. Lấy Top 10 từ Redis
             const topRedis = await this._lbManager.getTopList(String(gameId), Number(seasonId), 10);
             
-            // 2. Lấy Rank & Info của bản thân (Me) từ Redis
+            // 3. Lấy Rank & Info của bản thân (Me) từ Redis
             let myRankRedis = { rank: null as number | null, score: 0 };
             if (userId !== "guest") {
                 myRankRedis = await this._lbManager.getUserRankInfo(String(gameId), Number(seasonId), userId);
             }
 
-            // 3. Gộp danh sách ID để gọi DB 1 lần duy nhất
+            // 4. Gộp danh sách ID để gọi DB 1 lần duy nhất
             const userIdsToFetch = topRedis.map(i => i.value);
             
-            // Nếu "Me" có thực (không phải guest) VÀ "Me" chưa nằm trong Top 10
-            // thì mới thêm ID của "Me" vào danh sách cần lấy info
             if (userId !== "guest" && !userIdsToFetch.includes(userId)) {
                 userIdsToFetch.push(userId);
             }
 
-            // 4. Lấy thông tin hiển thị (Gọi DB 1 lần cho tất cả)
+            // 5. Lấy thông tin hiển thị (Gọi DB 1 lần cho tất cả)
             const usersInfo = await this._service.getUsersDisplayInfo(userIdsToFetch);
 
-            // 5. Map dữ liệu Leaderboard (Top 10)
+            // 6. Map dữ liệu Leaderboard (Top 10)
             const leaderboard = topRedis.map((item, index) => {
                 const info = usersInfo.find(u => u.username === item.value);
                 let displayPhone = item.value;
@@ -59,10 +67,9 @@ export class PrizeController {
                 };
             });
 
-            // 6. Map dữ liệu của "Me"
+            // 7. Map dữ liệu của "Me"
             let me = null;
             if (userId !== "guest") {
-                 // Tìm info của mình trong đống dữ liệu vừa lấy về
                  const myInfo = usersInfo.find(u => u.username === userId);
                  let myDisplayPhone = userId;
                  
@@ -71,7 +78,7 @@ export class PrizeController {
                  }
 
                  me = {
-                     rank: myRankRedis.rank, // Rank lấy từ Redis (ví dụ: 50)
+                     rank: myRankRedis.rank,
                      phone: myDisplayPhone,
                      score: myRankRedis.score
                  };
@@ -90,9 +97,14 @@ export class PrizeController {
     // Handler: Nạp điểm 
     submitScore = async (req: Request, res: Response) => {
         try {
-            const { userId, gameId, seasonId, score } = req.body;
+            const userId = this.getUserIdFromToken(req);
+            if (!userId) {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest("Token không hợp lệ"));
+            }
+
+            const { gameId, seasonId, score } = req.body;
             
-            if (!userId || !gameId || !score) {
+            if (!gameId || !score) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
                           .json(APIResponse.BadRequest("Dữ liệu nạp điểm không hợp lệ"));
             }
@@ -110,10 +122,15 @@ export class PrizeController {
         }
     }
 
-    // Handler: Mở Luckybox 
+    // Handler: Mở Luckybox (BẮT BUỘC AUTH)
     playLuckybox = async (req: Request, res: Response) => {
         try {
-            const { userId, gameId } = req.body;
+            const userId = this.getUserIdFromToken(req);
+            if (!userId) {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest("Token không hợp lệ"));
+            }
+
+            const { gameId } = req.body;
             
             const result = await this._service.openLuckyBox(userId, gameId);
             
@@ -131,25 +148,29 @@ export class PrizeController {
         }
     }
 
-    // Handler: Lấy lịch sử 
+    // Handler: Lấy lịch sử (BẮT BUỘC AUTH)
     getMyHistory = async (req: Request, res: Response) => {
         try {
-            const userId = req.query.userId as string;
+            const userId = this.getUserIdFromToken(req);
+            if (!userId) {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest("Token không hợp lệ"));
+            }
+
             const gameId = req.query.gameId as string;
             const type = (req.query.type as string) || 'reward';
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 20;
 
-            if (!userId || !gameId) {
+            if (!gameId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest("Thiếu userId hoặc gameId"));
+                          .json(APIResponse.BadRequest("Thiếu gameId"));
             }
 
             const result = await this._service.getHistory(userId, gameId, type, page, limit);
             
             if (!result.success) {
                  return res.status(HttpStatusCode.BAD_REQUEST)
-                           .json(APIResponse.BadRequest(result.message));
+                            .json(APIResponse.BadRequest(result.message));
             }
 
             return res.status(HttpStatusCode.OK)
@@ -161,21 +182,17 @@ export class PrizeController {
         }
     }
 
-    /**
-     * Handler: Kết thúc mùa giải 
-     * API: POST /api/season/end
-     */
+    // Handler: Kết thúc mùa giải (ADMIN)
     endSeason = async (req: Request, res: Response) => {
         try {
+            
             const { gameId, seasonId } = req.body;
 
-            // Validate dữ liệu đầu vào
             if (!gameId || !seasonId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
                           .json(APIResponse.BadRequest("Thiếu gameId hoặc seasonId"));
             }
 
-            // Gọi Logic chốt sổ bên Service 
             const result = await this._service.finalizeSeason(gameId, Number(seasonId));
 
             if (!result.success) {
