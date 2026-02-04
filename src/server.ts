@@ -9,8 +9,9 @@ import prisma from "./configs/PrismaContext";
 import { CreateLoggerMiddle } from "./middlewares/LoggerMiddle";
 import { connectRedis } from "./utils/RedisClient";
 
-const app = express();
+export const app = express();
 const PORT = process.env.PORT || 3000;
+
 
 app.use(CorsMiddle);
 app.use(express.json());
@@ -39,3 +40,4 @@ const startServer = async () => {
 };
 
 startServer();
+
