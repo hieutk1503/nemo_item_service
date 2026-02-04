@@ -1,14 +1,12 @@
 import { InventoryManager } from '../manager/InventoryManager';
 import { ItemManager } from '../manager/ItemManager';
-
+import { RedisClient } from '../utils/RedisClient'; 
 export class ItemService {
 
     /**
      * 1. DÙNG VẬT PHẨM (USE ITEM)
-     * Đã cập nhật: gameId là string (Game Code) để đồng bộ với toàn hệ thống
      */
     static async useItem(userId: string, gameId: string, itemId: number, sessionId: string) {
-        // A. Lấy vật phẩm từ túi đồ (gameId giờ là string khớp với Game.code)
         const inventoryItem = await InventoryManager.getInventoryItem(userId, gameId, itemId);
 
         if (!inventoryItem) {
@@ -19,32 +17,27 @@ export class ItemService {
             throw new Error("Vật phẩm đã hết số lượng (Out of Stock)!");
         }
 
-        // B. Đọc Metadata từ bảng Item (Json)
         const itemMetadata: any = inventoryItem.item.metadata || {};
         const limitPerSession = itemMetadata.limit_per_session || 9999;
-
-        // C. Đọc Custom Data từ bảng Inventory (Json)
         let customData: any = inventoryItem.custom_data || {};
 
-        // D. Logic Reset Session
         if (customData.last_session_id !== sessionId) {
             customData.session_usage_count = 0;
             customData.last_session_id = sessionId;
         }
 
-        // E. Check Giới hạn
         if (customData.session_usage_count >= limitPerSession) {
             throw new Error(`Đã đạt giới hạn sử dụng (${limitPerSession} lần) trong lượt chơi này!`);
         }
 
-        // F. Cập nhật dữ liệu
         customData.session_usage_count += 1;
         const newQuantity = inventoryItem.quantity - 1;
 
-        // G. Cập nhật DB
         await InventoryManager.updateAfterUse(inventoryItem.inventory_id, newQuantity, customData);
 
-        // H. Ghi Log (Winston tự xử lý async)
+        // ✅ Xóa Cache Inventory sau khi dùng đồ
+        await this._clearCache(userId, gameId);
+
         InventoryManager.createLog(
             userId, 
             inventoryItem.inventory_id, 
@@ -61,17 +54,14 @@ export class ItemService {
 
     /**
      * 2. TRAO VẬT PHẨM (GRANT ITEM)
-     * Đã cập nhật: Nhận gameId dạng string
      */
     static async grantItem(userId: string, gameId: string, itemId: number, quantity: number, source: string) {
-        // A. Tìm thông tin vật phẩm mẫu
         const itemBase = await ItemManager.getItemDetail(itemId);
 
         if (!itemBase) {
             throw new Error(`Vật phẩm ID ${itemId} không tồn tại trong hệ thống!`);
         }
 
-        // B. Gọi Manager để Upsert (gameId là String)
         const result = await InventoryManager.grantItem(
             userId,
             gameId,
@@ -80,7 +70,9 @@ export class ItemService {
             itemBase.category.category_name
         );
 
-        // C. Ghi Log
+        // ✅ Xóa Cache Inventory sau khi nhận thêm đồ
+        await this._clearCache(userId, gameId);
+
         InventoryManager.createLog(
             userId, 
             result.inventory_id, 
@@ -92,9 +84,26 @@ export class ItemService {
     }
 
     /**
-     * 3. CHECK SỞ HỮU
+     * 3. CHECK SỞ HỮU (Tích hợp đọc Cache)
      */
     static async checkOwnership(userId: string, gameId: string, itemId: number) {
+        const cacheKey = `inv:${gameId}:${userId}`;
+        
+        try {
+            // Thử đọc từ Redis
+            const cached = await RedisClient.get(cacheKey);
+            if (cached) {
+                const inventory = JSON.parse(cached);
+                const item = inventory.find((i: any) => i.item_reference_id === itemId);
+                if (item && item.quantity > 0) {
+                    return { hasItem: true, quantity: item.quantity, item: item, fromCache: true };
+                }
+            }
+        } catch (err) {
+            console.error("Redis Get Error:", err);
+        }
+
+        // Nếu hụt cache, đọc DB
         const item = await InventoryManager.getInventoryItem(userId, gameId, itemId);
         
         if (item && item.quantity > 0) {
@@ -113,6 +122,9 @@ export class ItemService {
 
         await InventoryManager.updateQuantity(item.inventory_id, 0);
 
+        // ✅ Xóa Cache Inventory
+        await this._clearCache(userId, gameId);
+
         InventoryManager.createLog(
             userId, 
             item.inventory_id, 
@@ -121,5 +133,41 @@ export class ItemService {
         );
 
         return { success: true, message: "Đã thu hồi vật phẩm" };
+    }
+
+    /**
+     * 5. LẤY TOÀN BỘ TÚI ĐỒ (Dùng nhiều nhất - Nên Cache nhất)
+     */
+    static async getInventory(userId: string, gameId: string) {
+        const cacheKey = `inv:${gameId}:${userId}`;
+
+        try {
+            const cached = await RedisClient.get(cacheKey);
+            if (cached) return JSON.parse(cached);
+        } catch (err) {
+            console.error("Redis Get Error:", err);
+        }
+
+        const inventory = await InventoryManager.findByUserId(userId, gameId);
+
+        try {
+            // Cache trong 10 phút (600 giây)
+            await RedisClient.set(cacheKey, JSON.stringify(inventory), { EX: 600 });
+        } catch (err) {
+            console.error("Redis Set Error:", err);
+        }
+
+        return inventory;
+    }
+
+    /**
+     * Helper xóa cache
+     */
+    private static async _clearCache(userId: string, gameId: string) {
+        try {
+            await RedisClient.del(`inv:${gameId}:${userId}`);
+        } catch (err) {
+            console.error("Redis Del Error:", err);
+        }
     }
 }

@@ -20,7 +20,7 @@ class StoreService {
         const item = await storeManager.findItemById(productId);
         if (!item) return { success: false, message: "Sản phẩm không tồn tại" };
 
-        // B. Tạo Order (Gọi sang OrderService của Hiếu)
+        // B. Tạo Order 
         const orderResult = await orderService.createOrder({
             gameId: gameId,
             productId: productId,
