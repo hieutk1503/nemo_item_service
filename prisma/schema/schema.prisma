@@ -29,9 +29,13 @@ model User {
   msisdn               String                @id @db.VarChar(20)
   username             String?               @db.VarChar(100)
   fullName             String?               @db.VarChar(100)
+  password             String?               @db.VarChar(255) // New: Lưu hash mật khẩu
+  firstLogin           Boolean               @default(true)   // New: Check lần đầu để mở popup
+  status               String                @default("ACTIVE") @db.VarChar(20) // New: Middleware của Mentor check cái này
   lang                 String                @default("en") @db.VarChar(10)
   lastLogin            DateTime              @default(now())
   createdAt            DateTime              @default(now())
+  
   leaderboardSnapshots LeaderboardSnapshot[]
   rewardHistories      RewardHistory[]
   scoreHistories       ScoreHistory[]
