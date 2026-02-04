@@ -21,7 +21,7 @@ export default createRouter(controller, [
     {
         method: 'post',
         path: '/client/purchase',   // Khởi tạo mua gói
-        middlewares: [authMiddleware], // Đã bổ sung middleware để lấy msisdn từ Token
+        middlewares: [authMiddleware],
         handler: 'purchase'
     },
     {

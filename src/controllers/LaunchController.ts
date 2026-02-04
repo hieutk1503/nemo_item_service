@@ -101,7 +101,6 @@ export class LaunchController {
                     APIResponse.BadRequest("Thiếu tài khoản hoặc mật khẩu")
                 );
             }
-
             const result = await AuthService.login(req.body);
 
             if (!result.success) {
