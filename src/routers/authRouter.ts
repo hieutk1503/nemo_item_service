@@ -7,7 +7,7 @@ const controller = new LaunchController();
 export default createRouter(controller, [
     {
         method: 'post',
-        path: '/game/launch',       // Khởi tạo Game/User
+        path: '/game/launch',       // Khởi tạo Game/User (Luồng App)
         handler: 'launch'           
     },
     {
@@ -21,5 +21,15 @@ export default createRouter(controller, [
         path: '/auth/update-password', // Đặt pass lần đầu (First Login)
         middlewares: [authMiddleware],
         handler: 'updatePassword'
+    },
+    {
+        method: 'post',
+        path: '/auth/register',     // Đăng ký tài khoản mới
+        handler: 'register'
+    },
+    {
+        method: 'post',
+        path: '/auth/login',        // Đăng nhập truyền thống
+        handler: 'login'
     }
 ]);

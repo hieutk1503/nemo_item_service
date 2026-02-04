@@ -60,4 +60,59 @@ export class LaunchController {
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError(error.message));
         }
     }
+    /**
+     * API: Đăng ký tài khoản mới (Username/Password)
+     * Path: POST /api/auth/register
+     */
+    register = async (req: Request, res: Response) => {
+        try {
+            const { username, password, msisdn } = req.body;
+
+            // Validate dữ liệu đầu vào
+            if (!username || !password || !msisdn) {
+                return res.status(HttpStatusCode.BAD_REQUEST).json(
+                    APIResponse.BadRequest("Thiếu thông tin (username, password, msisdn)")
+                );
+            }
+
+            const result = await AuthService.register(req.body);
+            
+            if (!result.success) {
+                return res.status(HttpStatusCode.BAD_REQUEST).json(result);
+            }
+            return res.status(HttpStatusCode.OK).json(result);
+        } catch (error: any) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(
+                APIResponse.ServerError(error.message)
+            );
+        }
+    }
+
+    /**
+     * API: Đăng nhập (Username/Password)
+     * Path: POST /api/auth/login
+     */
+    login = async (req: Request, res: Response) => {
+        try {
+            const { username, password } = req.body;
+
+            if (!username || !password) {
+                return res.status(HttpStatusCode.BAD_REQUEST).json(
+                    APIResponse.BadRequest("Thiếu tài khoản hoặc mật khẩu")
+                );
+            }
+
+            const result = await AuthService.login(req.body);
+
+            if (!result.success) {
+                // Trả về 401 Unauthorized nếu sai pass
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(result);
+            }
+            return res.status(HttpStatusCode.OK).json(result);
+        } catch (error: any) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(
+                APIResponse.ServerError(error.message)
+            );
+        }
+    }
 }
