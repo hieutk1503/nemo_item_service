@@ -126,15 +126,16 @@
 // }
 
 // export default new TransactionService();
+import axios from 'axios'; // Đảm bảo Hiếu đã chạy: npm install axios
+import prisma from '../configs/PrismaContext';
 import storeManager from '../manager/StoreManager';
 import OrderService from './OrderService';
-// ✅ Sửa lại: Gọi qua ItemService để tận dụng logic Log/Check Category
 import { ItemService } from './ItemService'; 
 import { ServiceResponse } from '../utils/ServiceResponse';
-import { OrderActionLogger } from '../utils/Logger'; 
+import { OrderActionLogger } from '../utils/Logger';
 
 interface UserData {
-    id: string; // msisdn (String)
+    id: string; // msisdn (Dạng String để khớp với team)
     name: string;
 }
 
@@ -151,10 +152,44 @@ class TransactionService {
                 return ServiceResponse.Fail("Sản phẩm không tồn tại!");
             }
 
-            // 2. [GIẢ ĐỊNH TRỪ TIỀN]
+            // 2. LẤY THÔNG TIN GAME (Để lấy baseUrl và code làm gameType)
+            const gameInfo = await prisma.game.findFirst({
+                where: { 
+                    OR: [
+                        { id: isNaN(Number(gameId)) ? undefined : Number(gameId) },
+                        { code: gameId }
+                    ]
+                }
+            });
 
-            // 3. CỘNG ĐỒ (Gọi qua ItemService thay vì Manager)
-            // Logic bên trong ItemService sẽ tự gọi InventoryManager + Ghi Log
+            if (!gameInfo) {
+                return ServiceResponse.Fail("Thông tin Game không tồn tại!");
+            }
+
+            const gameType = gameInfo.code.toLowerCase();
+
+            // 3. GỌI API TRỪ TIỀN BÊN THỨ BA (Subscription Init)
+            try {
+                // Sử dụng baseUrl từ database của Hiếu
+                const paymentUrl = `${gameInfo.baseUrl}/api/${gameType}/subscription/init`; 
+
+                const paymentResponse = await axios.post(paymentUrl, {
+                    msisdn: userId, // Số điện thoại dạng string
+                    productId: productId,
+                    amount: productData.price,
+                    description: `Mua vật phẩm ${productData.item_name}`
+                });
+
+                // Kiểm tra trạng thái trả về từ bên thứ ba
+                if (paymentResponse.data.status !== 'SUCCESS') {
+                    throw new Error(paymentResponse.data.message || "Tài khoản không đủ tiền");
+                }
+            } catch (payError: any) {
+                OrderActionLogger.error('PAYMENT_FAILED', { userId, gameType, error: payError.message });
+                return ServiceResponse.Fail(`Thanh toán thất bại: ${payError.message}`);
+            }
+
+            // 4. CỘNG ĐỒ VÀO INVENTORY (Chỉ thực hiện khi trừ tiền xong)
             try {
                 await ItemService.grantItem(
                     userId,             
@@ -164,19 +199,18 @@ class TransactionService {
                     'STORE_PURCHASE'    
                 );
             } catch (invError: any) {
-                // Nếu cộng đồ lỗi, phải ghi log lại và báo lỗi ngay
+                // Lỗi cộng đồ sau khi trừ tiền là lỗi nghiêm trọng
                 OrderActionLogger.error('CRITICAL_INVENTORY_FAIL', { 
-                    userId, gameId, productId,
-                    error: invError.message 
+                    userId, gameId, productId, error: invError.message 
                 });
                 
-                // Lưu lại một đơn hàng FAILED để theo dõi
+                // Lưu đơn hàng FAILED để đối soát
                 await this._logFailedOrder(gameId, productId, productData.price, userData, "INVENTORY_ERROR");
                 
-                return ServiceResponse.Fail(`Giao dịch thất bại: Không thể cộng vật phẩm (${invError.message})`);
+                return ServiceResponse.Fail(`Đã trừ tiền nhưng cộng vật phẩm thất bại. Vui lòng liên hệ CSKH!`);
             }
 
-            // 4. LƯU ĐƠN HÀNG THÀNH CÔNG (Chỉ chạy khi bước 3 xong)
+            // 5. LƯU ĐƠN HÀNG THÀNH CÔNG VÀO MYSQL
             const orderRes = await OrderService.createOrder({
                 gameId: gameId,
                 productId: productId,
@@ -185,12 +219,12 @@ class TransactionService {
                 status: 'SUCCESS'
             }, userData);
 
-            // 5. GHI LOG HOÀN TẤT
+            // 6. GHI LOG HOÀN TẤT VÀO MONGODB
             OrderActionLogger.info('PURCHASE_COMPLETE', {
                 userId, 
                 gameId,
                 orderId: (orderRes.data as any)?.id,
-                details: `Mua thành công: ${productData.item_name}`
+                details: `Giao dịch hoàn tất cho ${productData.item_name}`
             });
 
             return ServiceResponse.Success({
@@ -213,7 +247,7 @@ class TransactionService {
                 status: 'FAILED'
             }, userData);
         } catch (e) {
-            console.error("Lỗi log Failed Order:", e);
+            console.error("Lỗi ghi log đơn hàng thất bại:", e);
         }
     }
 }
