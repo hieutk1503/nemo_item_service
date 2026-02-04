@@ -145,4 +145,32 @@ export class SubscriptionService {
       return ServiceResponse.Fail("Callback Processing Error");
     }
   }
+  /**
+   * API: Lấy danh sách gói cước (Dùng cho trang Shop)
+   */
+  static async getPlans() {
+    try {
+      const plans = await prisma.plan.findMany({
+        include: { benefits: true }
+      });
+      return ServiceResponse.Success(plans, "Lấy danh sách gói cước thành công");
+    } catch (error) {
+      return ServiceResponse.Fail("Lỗi khi lấy danh sách gói cước");
+    }
+  }
+
+  /**
+   * API: Lấy lịch sử giao dịch của tôi
+   */
+  static async getMyTransactions(msisdn: string) {
+    try {
+      const transactions = await prisma.transaction.findMany({
+        where: { msisdn },
+        orderBy: { createdAt: 'desc' }
+      });
+      return ServiceResponse.Success(transactions, "Lấy lịch sử giao dịch thành công");
+    } catch (error) {
+      return ServiceResponse.Fail("Lỗi khi lấy lịch sử giao dịch");
+    }
+  }
 }
