@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystery Box Premium - Win Amazing Prizes!</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="loader" class="loader-container">
+        <div class="spinner"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-logo">MYSTERY<span>BOX</span></div>
+        <div class="nav-links" id="navLinks">
+            <button class="nav-item active" data-view="dashboard">Dashboard</button>
+            <button class="nav-item" data-view="shop">Shop</button>
+            <button class="nav-item" data-view="inventory">Inventory</button>
+            <button class="nav-item" data-view="leaderboard">Leaderboard</button>
+            <button class="nav-item" data-view="history">History</button>
+        </div>
+        <div id="userProfile" class="user-profile hidden">
+            <span id="userNameDisplay">User</span>
+            <button id="logoutBtn" class="btn-logout">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Auth View -->
+        <section id="authView" class="view section-auth">
+            <div class="glass-card auth-card">
+                <h1>Welcome Back</h1>
+                <p>Launch your adventure to win exclusive rewards.</p>
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="msisdn">Phone Number (MSISDN)</label>
+                        <input type="text" id="msisdn" placeholder="e.g. 84912345678" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" placeholder="Your Name" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Launch Game</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Dashboard View -->
+        <section id="dashboardView" class="view hidden">
+            <div class="hero-section">
+                <div class="glass-card hero-card">
+                    <h2>Hello, <span id="welcomeName">Gamer</span>!</h2>
+                    <p>Your current score: <strong id="currentScoreDisplay">0</strong></p>
+                    <div class="action-grid">
+                        <div class="action-card" id="submitScoreBtn">
+                            <div class="icon">🏆</div>
+                            <h3>Submit Score</h3>
+                            <p>Challenge yourself!</p>
+                        </div>
+                        <div class="action-card" id="openBoxBtn">
+                            <div class="icon">🎁</div>
+                            <h3>Open Luckybox</h3>
+                            <p>Test your luck!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit Score Modal-like Overlay -->
+            <div id="scoreModal" class="modal hidden">
+                <div class="glass-card modal-content">
+                    <h3>Submit Score</h3>
+                    <input type="number" id="scoreInput" placeholder="Enter score...">
+                    <div class="modal-actions">
+                        <button id="cancelScore" class="btn-secondary">Cancel</button>
+                        <button id="confirmScore" class="btn-primary">Submit</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Shop View -->
+        <section id="shopView" class="view hidden">
+            <div class="section-header">
+                <h2>Premimum Shop</h2>
+                <p>Upgrade your experience with exclusive items.</p>
+            </div>
+            <div id="productList" class="grid-container">
+                <!-- Products will be injected here -->
+                <div class="empty-state">Loading products...</div>
+            </div>
+        </section>
+
+        <!-- Inventory View -->
+        <section id="inventoryView" class="view hidden">
+            <div class="section-header">
+                <h2>Your Inventory</h2>
+                <p>Manage your items and see what you've won.</p>
+            </div>
+            <div id="inventoryList" class="grid-container">
+                <!-- Inventory items will be injected here -->
+                <div class="empty-state">Your inventory is empty.</div>
+            </div>
+        </section>
+
+        <!-- Leaderboard View -->
+        <section id="leaderboardView" class="view hidden">
+            <div class="section-header">
+                <h2>Global Leaderboard</h2>
+                <p>See where you stand among the best.</p>
+            </div>
+            <div class="glass-card leaderboard-container">
+                <div class="leaderboard-header">
+                    <span>Rank</span>
+                    <span>Player</span>
+                    <span>Score</span>
+                </div>
+                <div id="leaderboardRows">
+                    <!-- Leaderboard entries will be injected here -->
+                </div>
+                <div id="myRankRow" class="my-rank hidden">
+                    <!-- Current user's rank will be injected here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- History View -->
+        <section id="historyView" class="view hidden">
+            <div class="section-header">
+                <h2>Reward History</h2>
+                <p>Track your recent winnings.</p>
+            </div>
+            <div class="glass-card table-container">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reward</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <!-- History rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
