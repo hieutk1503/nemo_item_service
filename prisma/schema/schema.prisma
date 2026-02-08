@@ -192,6 +192,7 @@ model RewardHistory {
 
 model Item {
   category_id Int
+  game_id   String
   created_at  DateTime    @default(now())
   description String?     @db.Text
   icon_url    String?
@@ -205,6 +206,7 @@ model Item {
   category    Category    @relation(fields: [category_id], references: [category_id])
 
   @@index([category_id], map: "items_category_id_fkey")
+  @@index([game_id])
   @@map("items")
 }
 

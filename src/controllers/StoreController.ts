@@ -57,75 +57,75 @@ class StoreController {
         }
     }
 
-    /**
-     * API: Mua vật phẩm (Hợp nhất Order + Inventory qua TransactionService)
-     * Method: POST /api/store/purchase
+   /**
+     * API: Mua vật phẩm (Đã sửa để lấy User từ Token)
      */
-    buyItem = async (req: Request, res: Response) => {
-        try {
-            const userId = req.header('x-user-id');
-            const gameId = req.header('x-game-id');
-            const { productId } = req.body;
+   buyItem = async (req: any, res: Response) => { // Đổi Request thành any để dùng req.user
+    try {
+        // ✅ Lấy userId (msisdn) từ req.user do JwtAuthMiddle cung cấp
+        const userId = req.user?.msisdn || req.user?.id; 
+        const gameId = req.header('x-game-id');
+        const { productId } = req.body;
 
-            if (!userId || userId === "Guest") {
-                return res.status(HttpStatusCode.UNAUTHORIZED)
-                          .json(APIResponse.Unauthorized("Vui lòng gửi Header x-user-id hợp lệ"));
-            }
-
-            // ✅ Gọi TransactionService: Xử lý trừ tiền (giả định), tạo Order và Grant Item
-            const result = await transactionService.purchaseItem(
-                String(gameId),
-                Number(productId),
-                { id: String(userId), name: 'User_Customer' } // Mock userData
-            );
-
-            if (!result.success) {
-                return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest(result.message));
-            }
-
-            return res.status(HttpStatusCode.CREATED)
-                      .json(APIResponse.Created("Giao dịch thành công", result.data));
-
-        } catch (error: any) {
-            Logger.error(`System Error in buyItem: ${error.message}`);
-            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-                      .json(APIResponse.ServerError(error.message));
+        if (!userId) {
+            return res.status(HttpStatusCode.UNAUTHORIZED)
+                      .json(APIResponse.Unauthorized("Không tìm thấy thông tin xác thực"));
         }
-    }
 
-    /**
-     * API: Lấy lịch sử mua sắm (Dùng OrderService để lấy đúng logic phân trang)
-     * Method: GET /api/store/history
-     */
-    getHistory = async (req: Request, res: Response) => {
-        try {
-            const userId = req.header('x-user-id');
-            const gameId = req.header('x-game-id');
-            const { page, limit } = req.query;
+        // ✅ Gọi TransactionService: Bây giờ sẽ bao gồm cả bước trừ tiền qua API
+        const result = await transactionService.purchaseItem(
+            String(gameId),
+            Number(productId),
+            { id: String(userId), name: req.user?.name || 'User_Customer' } 
+        );
 
-            const result = await orderService.getOrderHistory(
-                String(userId),
-                String(gameId),
-                { id: String(userId), name: 'Customer' },
-                Number(page) || 1,
-                Number(limit) || 10
-            );
-
-            if (!result.success) {
-                return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest(result.message));
-            }
-
-            return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK(result.message, result.data));
-
-        } catch (error: any) {
-            Logger.error(`System Error in getHistory: ${error.message}`);
-            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-                      .json(APIResponse.ServerError(error.message));
+        if (!result.success) {
+            return res.status(HttpStatusCode.BAD_REQUEST)
+                      .json(APIResponse.BadRequest(result.message));
         }
+
+        return res.status(HttpStatusCode.CREATED)
+                  .json(APIResponse.Created(result.message, result.data));
+
+    } catch (error: any) {
+        Logger.error(`System Error in buyItem: ${error.message}`);
+        return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+                  .json(APIResponse.ServerError(error.message));
     }
+}
+
+/**
+ * API: Lấy lịch sử mua sắm
+ */
+getHistory = async (req: any, res: Response) => {
+    try {
+        const userId = req.user?.msisdn || req.user?.id; // Lấy từ Token
+        const gameId = req.header('x-game-id');
+        const { page, limit } = req.query;
+
+        // ✅ Đảm bảo truyền userId là String để khớp msisdn
+        const result = await orderService.getOrderHistory(
+            String(userId),
+            String(gameId),
+            { id: String(userId), name: req.user?.name || 'Customer' },
+            Number(page) || 1,
+            Number(limit) || 10
+        );
+
+        if (!result.success) {
+            return res.status(HttpStatusCode.BAD_REQUEST)
+                      .json(APIResponse.BadRequest(result.message));
+        }
+
+        return res.status(HttpStatusCode.OK)
+                  .json(APIResponse.OK(result.message, result.data));
+
+    } catch (error: any) {
+        Logger.error(`System Error in getHistory: ${error.message}`);
+        return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+                  .json(APIResponse.ServerError(error.message));
+    }
+}
 }
 
 export default new StoreController();

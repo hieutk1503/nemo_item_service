@@ -40,9 +40,12 @@ class StoreManagerClass extends BaseRedisManager<StoreCacheData> {
             return cached.items;
         }
 
-        // 2. Truy vấn DB
-        // Do bảng Item không có game_id trực tiếp, ta lấy theo Category hoặc All
+        // 2. Truy vấn DB (Đã cập nhật: Lọc theo game_id)
+        // ✅ Bây giờ bảng Item đã có game_id trực tiếp, ta filter thẳng luôn
         const items = await prisma.item.findMany({
+            where: {
+                game_id: gameId // Chỉ lấy vật phẩm của game này (ví dụ: 'MYSTERY_BOX')
+            },
             include: {
                 category: true 
             }
@@ -59,10 +62,14 @@ class StoreManagerClass extends BaseRedisManager<StoreCacheData> {
         return items;
     }
 
-    async findItemById(itemId: number) {
-        return prisma.item.findUnique({
+    /**
+     * Tìm vật phẩm cụ thể (Nên kèm thêm gameId để bảo mật)
+     */
+    async findItemById(itemId: number, gameId?: string) {
+        return prisma.item.findFirst({
             where: {
-                item_id: itemId
+                item_id: itemId,
+                ...(gameId && { game_id: gameId }) // Nếu có truyền gameId thì lọc thêm cho chắc
             },
             include: {
                 category: true 
@@ -75,24 +82,18 @@ class StoreManagerClass extends BaseRedisManager<StoreCacheData> {
     }
 
     // ======================================================
-    // 🛒 ORDER
+    // 🛒 ORDER (Dưới này Hiếu đã viết đúng rồi, mình giữ nguyên)
     // ======================================================
 
-    /**
-     * Đếm số đơn hàng (userId & gameId đều là string)
-     */
     async countOrdersByUser(userId: string, gameId: string) { 
         return prisma.orders.count({
             where: {
-                user_id: userId, // Khớp msisdn
-                game_id: gameId  // Khớp String game_id
+                user_id: userId,
+                game_id: gameId
             }
         });
     }
 
-    /**
-     * Lấy danh sách đơn hàng
-     */
     async findOrdersByUser(
         userId: string,
         gameId: string, 
@@ -107,7 +108,7 @@ class StoreManagerClass extends BaseRedisManager<StoreCacheData> {
             skip,
             take,
             orderBy: {
-                created_at: "desc" // Khớp created_at
+                created_at: "desc"
             },
             include: {
                 orders_item: true 

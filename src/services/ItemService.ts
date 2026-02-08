@@ -1,20 +1,27 @@
 import { InventoryManager } from '../manager/InventoryManager';
 import { ItemManager } from '../manager/ItemManager';
 import { RedisClient } from '../utils/RedisClient'; 
+
 export class ItemService {
 
     /**
      * 1. DÙNG VẬT PHẨM (USE ITEM)
      */
     static async useItem(userId: string, gameId: string, itemId: number, sessionId: string) {
+        // ✅ Cập nhật: getInventoryItem bây giờ đã nhận gameId (game_code)
         const inventoryItem = await InventoryManager.getInventoryItem(userId, gameId, itemId);
 
         if (!inventoryItem) {
-            throw new Error("Vật phẩm không tồn tại trong túi đồ!");
+            throw new Error("Vật phẩm không tồn tại trong túi đồ của game này!");
+        }
+
+        // Kiểm tra logic Game ID bổ sung (Double check)
+        if (inventoryItem.game_id !== gameId) {
+            throw new Error("Hành động không hợp lệ: Vật phẩm không thuộc game hiện tại!");
         }
 
         if (inventoryItem.quantity <= 0) {
-            throw new Error("Vật phẩm đã hết số lượng (Out of Stock)!");
+            throw new Error("Vật phẩm đã hết số lượng!");
         }
 
         const itemMetadata: any = inventoryItem.item.metadata || {};
@@ -35,7 +42,7 @@ export class ItemService {
 
         await InventoryManager.updateAfterUse(inventoryItem.inventory_id, newQuantity, customData);
 
-        // ✅ Xóa Cache Inventory sau khi dùng đồ
+        // ✅ Xóa Cache sau khi dùng
         await this._clearCache(userId, gameId);
 
         InventoryManager.createLog(
@@ -56,21 +63,25 @@ export class ItemService {
      * 2. TRAO VẬT PHẨM (GRANT ITEM)
      */
     static async grantItem(userId: string, gameId: string, itemId: number, quantity: number, source: string) {
-        const itemBase = await ItemManager.getItemDetail(itemId);
-
+        const itemBase = await ItemManager.getItemDetail(Number(itemId)); // ✅ Ép kiểu itemId truyền vào
+        console.log("DỮ LIỆU VẬT PHẨM LẤY RA:", JSON.stringify(itemBase, null, 2));
         if (!itemBase) {
-            throw new Error(`Vật phẩm ID ${itemId} không tồn tại trong hệ thống!`);
+            throw new Error(`Vật phẩm ID ${itemId} không tồn tại!`);
+        }
+
+        if (itemBase.game_id !== gameId) {
+            // Lỗi này hay xảy ra nếu DB là 'MYSTERY_BOX' nhưng code gửi 'mystery_box'
+            throw new Error(`Vật phẩm thuộc game ${itemBase.game_id}, không thể trao trong ${gameId}!`);
         }
 
         const result = await InventoryManager.grantItem(
             userId,
             gameId,
-            itemBase.item_id,
-            quantity,
+            Number(itemBase.item_id), // ✅ Đảm bảo là Number
+            Number(quantity),          // ✅ Đảm bảo là Number
             itemBase.category.category_name
         );
 
-        // ✅ Xóa Cache Inventory sau khi nhận thêm đồ
         await this._clearCache(userId, gameId);
 
         InventoryManager.createLog(
@@ -90,11 +101,11 @@ export class ItemService {
         const cacheKey = `inv:${gameId}:${userId}`;
         
         try {
-            // Thử đọc từ Redis
             const cached = await RedisClient.get(cacheKey);
             if (cached) {
                 const inventory = JSON.parse(cached);
-                const item = inventory.find((i: any) => i.item_reference_id === itemId);
+                // ✅ Check kĩ cả item_reference_id và game_id trong cache
+                const item = inventory.find((i: any) => i.item_reference_id === itemId && i.game_id === gameId);
                 if (item && item.quantity > 0) {
                     return { hasItem: true, quantity: item.quantity, item: item, fromCache: true };
                 }
@@ -103,7 +114,6 @@ export class ItemService {
             console.error("Redis Get Error:", err);
         }
 
-        // Nếu hụt cache, đọc DB
         const item = await InventoryManager.getInventoryItem(userId, gameId, itemId);
         
         if (item && item.quantity > 0) {
@@ -118,11 +128,10 @@ export class ItemService {
     static async revokeItem(userId: string, gameId: string, itemId: number, reason: string) {
         const item = await InventoryManager.getInventoryItem(userId, gameId, itemId);
 
-        if (!item) throw new Error("Người chơi không sở hữu vật phẩm này!");
+        if (!item || item.game_id !== gameId) throw new Error("Người chơi không sở hữu vật phẩm này trong game hiện tại!");
 
         await InventoryManager.updateQuantity(item.inventory_id, 0);
 
-        // ✅ Xóa Cache Inventory
         await this._clearCache(userId, gameId);
 
         InventoryManager.createLog(
@@ -136,7 +145,7 @@ export class ItemService {
     }
 
     /**
-     * 5. LẤY TOÀN BỘ TÚI ĐỒ (Dùng nhiều nhất - Nên Cache nhất)
+     * 5. LẤY TOÀN BỘ TÚI ĐỒ
      */
     static async getInventory(userId: string, gameId: string) {
         const cacheKey = `inv:${gameId}:${userId}`;
@@ -148,10 +157,10 @@ export class ItemService {
             console.error("Redis Get Error:", err);
         }
 
+        // ✅ findByUserId của InventoryManager đã lọc theo game_id rồi nên rất an tâm
         const inventory = await InventoryManager.findByUserId(userId, gameId);
 
         try {
-            // Cache trong 10 phút (600 giây)
             await RedisClient.set(cacheKey, JSON.stringify(inventory), { EX: 600 });
         } catch (err) {
             console.error("Redis Set Error:", err);
@@ -160,9 +169,6 @@ export class ItemService {
         return inventory;
     }
 
-    /**
-     * Helper xóa cache
-     */
     private static async _clearCache(userId: string, gameId: string) {
         try {
             await RedisClient.del(`inv:${gameId}:${userId}`);

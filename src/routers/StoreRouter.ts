@@ -11,10 +11,7 @@ import { BuyItemRequest } from "../Dtos/Requests/BuyItemRequest";
 
 const StoreRouter = Router();
 
-/**
- * 💡 Giải thích: Vì tất cả các hàm getList, buyItem, getHistory... 
- * bây giờ đều nằm trong storeController, ta chỉ cần gọi createRouter 1 lần duy nhất.
- */
+
 StoreRouter.use('/', createRouter(storeController, [
     // --- PHẦN 1: PRODUCT (Public) ---
     {
@@ -34,7 +31,7 @@ StoreRouter.use('/', createRouter(storeController, [
         path: '/purchase',
         handler: 'buyItem',
         middlewares: [
-            //JwtAuthMiddle,
+            JwtAuthMiddle,
             ValidatorMiddle(BuyItemRequest)
         ]
     },
@@ -45,7 +42,7 @@ StoreRouter.use('/', createRouter(storeController, [
         path: '/history',
         handler: 'getHistory',
         middlewares: [
-            //  JwtAuthMiddle
+            JwtAuthMiddle
         ]
     }
 ]));
