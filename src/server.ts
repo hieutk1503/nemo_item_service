@@ -18,14 +18,9 @@ app.use(express.json());
 app.use(CorsMiddle);
 app.use(CreateLoggerMiddle(Logger));
 
-<<<<<<< HEAD
 // 2. Phục vụ file tĩnh (Phải đặt TRƯỚC router API nếu muốn chạy chung port)
 app.use(express.static(path.join(process.cwd(), "frontend")));
-=======
-// 2. Phục vụ các file tĩnh ở thư mục gốc (ngang hàng với src)
-// Khi bạn chạy ts-node từ thư mục gốc, process.cwd() chính là đường dẫn đến thư mục đó.
-app.use(express.static(path.join(process.cwd(),"demo")));
->>>>>>> a435f3c903d2eacdc58bc921d29749d4fb2113ee
+
 
 // 3. Định nghĩa API Routes
 app.use('/api', router);
@@ -41,7 +36,6 @@ app.use('/api', (req: Request, res: Response) => {
 
 // 5. ROUTE TRANG CHỦ
 app.get('/', (req, res) => {
-<<<<<<< HEAD
     res.sendFile(path.join(process.cwd(), 'frontend', 'index.html'));
 });
 
@@ -54,9 +48,7 @@ app.use((req: Request, res: Response) => {
     } else {
         res.status(404).json({ success: false, message: "Resource not found" });
     }
-=======
-    res.sendFile(path.join(process.cwd(),'demo', 'index.html'));
->>>>>>> a435f3c903d2eacdc58bc921d29749d4fb2113ee
+
 });
 
 const startServer = async () => {
