@@ -20,13 +20,13 @@ app.use(CreateLoggerMiddle(Logger));
 
 // 2. Phục vụ các file tĩnh ở thư mục gốc (ngang hàng với src)
 // Khi bạn chạy ts-node từ thư mục gốc, process.cwd() chính là đường dẫn đến thư mục đó.
-app.use(express.static(path.join(process.cwd(),"frontend")));
+app.use(express.static(path.join(process.cwd(),"demo")));
 
 app.use('/api', router);
 
 // 3. Route mặc định trả về file index.html khi vào http://localhost:PORT
 app.get('/', (req, res) => {
-    res.sendFile(path.join(process.cwd(),'frontend', 'index.html'));
+    res.sendFile(path.join(process.cwd(),'demo', 'index.html'));
 });
 
 const startServer = async () => {
