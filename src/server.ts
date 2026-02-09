@@ -9,6 +9,7 @@ import { connectMongoDB } from "./configs/MongoDBConfig";
 import prisma from "./configs/PrismaContext";
 import { CreateLoggerMiddle } from "./middlewares/LoggerMiddle";
 import { connectRedis } from "./utils/RedisClient";
+import { I18n } from "./helpers/i18nHelper";
 
 export const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,6 +58,8 @@ const startServer = async () => {
         await prisma.$connect();
         await connectMongoDB();
         await connectRedis();
+
+        await I18n.init();
 
         app.listen(PORT, () => {
             console.log(`=========================================`);

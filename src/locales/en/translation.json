@@ -1,0 +1,13 @@
+{
+  "TOKEN_INVALID": "Session expired or invalid token.",
+  "SYSTEM_ERROR": "Internal server error, please try again later.",
+  "LB_SUCCESS": "Leaderboard retrieved successfully.",
+  "SCORE_SUCCESS": "Score added successfully.",
+  "INVALID_SCORE_DATA": "Invalid score data submitted.",
+  "LUCKY_SUCCESS": "Lucky box opened successfully!",
+  "LUCKY_NO_CONFIG": "No prize configuration found for this box.",
+  "HISTORY_SUCCESS": "Activity history retrieved successfully.",
+  "MISSING_GAME_ID": "Missing gameId.",
+  "MISSING_SEASON_INFO": "Missing season or game information.",
+  "FINALIZE_SUCCESS": "Season finalized successfully!"
+}

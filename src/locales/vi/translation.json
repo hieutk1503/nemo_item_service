@@ -1,0 +1,13 @@
+{
+  "TOKEN_INVALID": "Phiên đăng nhập hết hạn hoặc không hợp lệ.",
+  "SYSTEM_ERROR": "Lỗi hệ thống, vui lòng thử lại sau.",
+  "LB_SUCCESS": "Lấy bảng xếp hạng thành công.",
+  "SCORE_SUCCESS": "Cộng điểm thành công.",
+  "INVALID_SCORE_DATA": "Số điểm nạp vào không hợp lệ.",
+  "LUCKY_SUCCESS": "Mở quà thành công!",
+  "LUCKY_NO_CONFIG": "Hiện tại chưa có phần thưởng nào trong hộp quà.",
+  "HISTORY_SUCCESS": "Lấy lịch sử thành công.",
+  "MISSING_GAME_ID": "Thiếu mã trò chơi (gameId).",
+  "MISSING_SEASON_INFO": "Thiếu thông tin mùa giải.",
+  "FINALIZE_SUCCESS": "Chốt sổ mùa giải thành công!"
+}

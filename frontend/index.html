@@ -16,6 +16,15 @@
 
     <nav class="navbar">
         <div class="nav-logo">MYSTERY<span>BOX</span></div>
+        
+        <div class="lang-switcher">
+            <select id="langSelect" class="lang-select">
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+                <option value="khmer">ភាសាខ្មែរ</option>
+            </select>
+        </div>
+
         <div class="nav-links" id="navLinks">
             <button class="nav-item active" data-view="dashboard">Dashboard</button>
             <button class="nav-item" data-view="shop">Shop</button>
@@ -30,7 +39,6 @@
     </nav>
 
     <main class="container">
-        <!-- Auth View -->
         <section id="authView" class="view section-auth">
             <div class="glass-card auth-card">
                 <h1>Welcome Back</h1>
@@ -49,7 +57,6 @@
             </div>
         </section>
 
-        <!-- Dashboard View -->
         <section id="dashboardView" class="view hidden">
             <div class="hero-section">
                 <div class="glass-card hero-card">
@@ -70,7 +77,6 @@
                 </div>
             </div>
             
-            <!-- Submit Score Modal-like Overlay -->
             <div id="scoreModal" class="modal hidden">
                 <div class="glass-card modal-content">
                     <h3>Submit Score</h3>
@@ -83,31 +89,26 @@
             </div>
         </section>
 
-        <!-- Shop View -->
         <section id="shopView" class="view hidden">
             <div class="section-header">
-                <h2>Premimum Shop</h2>
+                <h2>Premium Shop</h2>
                 <p>Upgrade your experience with exclusive items.</p>
             </div>
             <div id="productList" class="grid-container">
-                <!-- Products will be injected here -->
                 <div class="empty-state">Loading products...</div>
             </div>
         </section>
 
-        <!-- Inventory View -->
         <section id="inventoryView" class="view hidden">
             <div class="section-header">
                 <h2>Your Inventory</h2>
                 <p>Manage your items and see what you've won.</p>
             </div>
             <div id="inventoryList" class="grid-container">
-                <!-- Inventory items will be injected here -->
                 <div class="empty-state">Your inventory is empty.</div>
             </div>
         </section>
 
-        <!-- Leaderboard View -->
         <section id="leaderboardView" class="view hidden">
             <div class="section-header">
                 <h2>Global Leaderboard</h2>
@@ -119,34 +120,32 @@
                     <span>Player</span>
                     <span>Score</span>
                 </div>
-                <div id="leaderboardRows">
-                    <!-- Leaderboard entries will be injected here -->
-                </div>
-                <div id="myRankRow" class="my-rank hidden">
-                    <!-- Current user's rank will be injected here -->
-                </div>
+                <div id="leaderboardRows"></div>
+                <div id="myRankRow" class="my-rank hidden"></div>
             </div>
         </section>
 
-        <!-- History View -->
         <section id="historyView" class="view hidden">
             <div class="section-header">
-                <h2>Reward History</h2>
-                <p>Track your recent winnings.</p>
+                <h2>Activity History</h2>
+                <p>Track your scores and winnings.</p>
             </div>
+
+            <div class="history-tabs">
+                <button class="tab-btn active" data-history-type="reward">🎁 Rewards</button>
+                <button class="tab-btn" data-history-type="score">🏆 Scores</button>
+            </div>
+
             <div class="glass-card table-container">
                 <table id="historyTable">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Reward</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyBody">
-                        <!-- History rows will be injected here -->
-                    </tbody>
+                    <thead id="historyHeader"></thead>
+                    <tbody id="historyBody"></tbody>
                 </table>
+                <div id="historyPagination" class="pagination">
+                    <button id="prevPage" class="btn-small">Prev</button>
+                    <span id="pageInfo">Page 1</span>
+                    <button id="nextPage" class="btn-small">Next</button>
+                </div>
             </div>
         </section>
     </main>

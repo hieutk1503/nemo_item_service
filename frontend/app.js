@@ -1,5 +1,7 @@
 /**
- * Mystery Box Frontend - BẢN FULL CHUẨN DỊCH VỤ & SUBMIT SCORE (Đã tích hợp My Rank)
+ * Mystery Box Frontend - MULTI-LANGUAGE SUPPORTED
+ * Tích hợp: Dashboard, Shop, Inventory, Leaderboard (My Rank), History (Reward/Score)
+ * Hỗ trợ: Việt Nam, English, Khmer
  */
 
 const API_BASE = 'http://localhost:3000/api';
@@ -13,7 +15,13 @@ const state = {
     inventory: [],
     leaderboard: [],
     gameId: 'MYSTERY_BOX',
-    seasonId: 1
+    seasonId: 1,
+    // Ngôn ngữ mặc định
+    lang: localStorage.getItem('game_lang') || 'vi',
+    // History states
+    historyType: 'reward', 
+    historyPage: 1,
+    historyLimit: 10
 };
 
 // --- API Service ---
@@ -30,9 +38,14 @@ const ApiService = {
 
         headers['x-game-id'] = state.gameId;
 
+        // Tự động thêm tham số lang vào mọi URL
+        const separator = url.includes('?') ? '&' : '?';
+        const finalUrl = `${API_BASE}${url}${separator}lang=${state.lang}`;
+
         try {
-            const response = await fetch(`${API_BASE}${url}`, { ...options, headers });
+            const response = await fetch(finalUrl, { ...options, headers });
             const result = await response.json();
+            // Server sẽ trả về message đã được dịch dựa trên tham số lang này
             if (!response.ok) throw new Error(result.message || 'API request failed');
             return result;
         } catch (error) {
@@ -43,7 +56,7 @@ const ApiService = {
 
     launchGame: (msisdn, fullName) => ApiService.request('/game/launch', {
         method: 'POST',
-        body: JSON.stringify({ msisdn, fullName, lang: 'vi', gameType: state.gameId })
+        body: JSON.stringify({ msisdn, fullName, lang: state.lang, gameType: state.gameId })
     }),
 
     getInventory: () => ApiService.request(`/inventory?gameId=${state.gameId}`),
@@ -58,7 +71,6 @@ const ApiService = {
         })
     }),
 
-    // ✅ Đã cập nhật theo yêu cầu: Leaderboard & Score
     getLeaderboard: () => ApiService.request(`/leaderboard?gameId=${state.gameId}&seasonId=${state.seasonId}&userId=${state.user?.msisdn || ''}`),
     
     submitScore: (score) => ApiService.request('/score/submit', {
@@ -82,7 +94,10 @@ const ApiService = {
             itemId: Number(itemId), 
             sessionId: "SESS_" + Date.now()
         })
-    })
+    }),
+
+    getMyHistory: (type, page, limit) => 
+        ApiService.request(`/history?gameId=${state.gameId}&type=${type}&page=${page}&limit=${limit}`)
 };
 
 // --- UI Controller ---
@@ -95,35 +110,62 @@ const UIController = {
     },
 
     bindEvents() {
+        // Chuyển đổi ngôn ngữ
+        const langSelect = document.getElementById('langSelect');
+        if (langSelect) {
+            langSelect.value = state.lang;
+            langSelect.addEventListener('change', (e) => {
+                state.lang = e.target.value;
+                localStorage.setItem('game_lang', state.lang);
+                // Tải lại dữ liệu trang hiện tại với ngôn ngữ mới
+                this.loadViewData(state.currentView);
+                this.showToast(state.lang === 'vi' ? 'Đã đổi ngôn ngữ' : 'Language updated');
+            });
+        }
+
+        // Chuyển View chính
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', (e) => this.switchView(e.target.dataset.view));
         });
 
+        // Auth
         const loginForm = document.getElementById('loginForm');
         if (loginForm) loginForm.addEventListener('submit', (e) => this.handleLogin(e));
 
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) logoutBtn.addEventListener('click', () => this.handleLogout());
 
-        const submitScoreBtn = document.getElementById('submitScoreBtn');
-        if (submitScoreBtn) {
-            submitScoreBtn.addEventListener('click', () => this.toggleModal('scoreModal', true));
-        }
+        // Score Actions
+        document.getElementById('submitScoreBtn')?.addEventListener('click', () => this.toggleModal('scoreModal', true));
+        document.getElementById('cancelScore')?.addEventListener('click', () => this.toggleModal('scoreModal', false));
+        document.getElementById('confirmScore')?.addEventListener('click', () => this.handleSubmitScore());
 
-        const cancelScore = document.getElementById('cancelScore');
-        if (cancelScore) {
-            cancelScore.addEventListener('click', () => this.toggleModal('scoreModal', false));
-        }
+        // Luckybox
+        document.getElementById('openBoxBtn')?.addEventListener('click', () => this.handleOpenBox());
 
-        const confirmScore = document.getElementById('confirmScore');
-        if (confirmScore) {
-            confirmScore.addEventListener('click', () => this.handleSubmitScore());
-        }
+        // History Tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                state.historyType = e.target.dataset.historyType;
+                state.historyPage = 1;
+                this.renderHistory();
+            });
+        });
 
-        const openBoxBtn = document.getElementById('openBoxBtn');
-        if (openBoxBtn) {
-            openBoxBtn.addEventListener('click', () => this.handleOpenBox());
-        }
+        // Pagination
+        document.getElementById('prevPage')?.addEventListener('click', () => {
+            if (state.historyPage > 1) {
+                state.historyPage--;
+                this.renderHistory();
+            }
+        });
+
+        document.getElementById('nextPage')?.addEventListener('click', () => {
+            state.historyPage++;
+            this.renderHistory();
+        });
     },
 
     async handleSubmitScore() {
@@ -150,11 +192,9 @@ const UIController = {
     },
 
     toggleModal(id, show) {
-        const modal = document.getElementById(id);
-        if (modal) modal.classList.toggle('hidden', !show);
+        document.getElementById(id)?.classList.toggle('hidden', !show);
     },
 
-    // ✅ Đã cập nhật theo yêu cầu: renderLeaderboard mới hỗ trợ My Rank
     async renderLeaderboard() {
         const list = document.getElementById('leaderboardRows');
         const myRank = document.getElementById('myRankRow');
@@ -162,33 +202,81 @@ const UIController = {
 
         try {
             const res = await ApiService.getLeaderboard();
-            // Cấu trúc res.data.leaderboard theo code bạn gửi
             const lb = res.data.leaderboard || [];
             const me = res.data.me;
 
             list.innerHTML = lb.map((p, i) => `
                 <div class="leaderboard-row">
                     <span class="rank-badge rank-${i + 1}">${i + 1}</span>
-                    <span>${p.fullName || p.msisdn || p.phone || 'Người chơi'}</span>
-                    <span>${p.score}</span>
+                    <span>${p.phone || 'Player'}</span>
+                    <span>${p.score.toLocaleString()}</span>
                 </div>
             `).join('');
 
             if (me && myRank) {
                 myRank.classList.remove('hidden');
                 myRank.innerHTML = `
-                    <div class="leaderboard-row">
-                        <span class="rank-badge">${me.rank}</span>
-                        <span>Your Rank (${state.user.fullName}): ${state.user.msisdn}</span>
-                        <span>${me.score}</span>
+                    <div class="leaderboard-row my-rank-active">
+                        <span class="rank-badge">${me.rank || 'N/A'}</span>
+                        <span>Your Rank: ${me.phone || 'You'}</span>
+                        <span>${me.score.toLocaleString()}</span>
                     </div>
                 `;
                 const display = document.getElementById('currentScoreDisplay');
-                if (display) display.textContent = me.score;
+                if (display) display.textContent = me.score.toLocaleString();
             }
         } catch (err) { 
-            console.error(err);
             list.innerHTML = '<div class="empty-state">Failed to load leaderboard.</div>'; 
+        }
+    },
+
+    async renderHistory() {
+        const header = document.getElementById('historyHeader');
+        const body = document.getElementById('historyBody');
+        const pageInfo = document.getElementById('pageInfo');
+        if (!body || !header) return;
+
+        try {
+            const res = await ApiService.getMyHistory(state.historyType, state.historyPage, state.historyLimit);
+            const { rewards, scores } = res.data;
+            const data = state.historyType === 'reward' ? rewards : scores;
+
+            // Header động theo ngôn ngữ đã chọn (Backend xử lý message, Frontend xử lý Header tĩnh)
+            const headers = {
+                vi: state.historyType === 'reward' ? ['Thời gian', 'Phần thưởng', 'Số lượng', 'Nguồn'] : ['Thời gian', 'Điểm cộng', 'Tổng điểm'],
+                en: state.historyType === 'reward' ? ['Date', 'Reward', 'Qty', 'Source'] : ['Date', 'Score +', 'Total'],
+                khmer: state.historyType === 'reward' ? ['កាលបរិច្ឆេទ', 'រង្វាន់', 'បរិមាណ', 'ប្រភព'] : ['កាលបរិច្ឆេទ', 'ពិន្ទុបូក', 'ពិន្ទុសរុប']
+            };
+
+            const currentHeader = headers[state.lang] || headers.en;
+            header.innerHTML = `<tr>${currentHeader.map(h => `<th>${h}</th>`).join('')}</tr>`;
+
+            if (!data || data.length === 0) {
+                body.innerHTML = `<tr><td colspan="4" class="empty-state">No data available.</td></tr>`;
+                return;
+            }
+
+            body.innerHTML = data.map(item => {
+                const date = new Date(item.createdAt).toLocaleString(state.lang === 'vi' ? 'vi-VN' : 'en-US');
+                if (state.historyType === 'reward') {
+                    return `<tr>
+                        <td>${date}</td>
+                        <td><span class="reward-id">${item.rewardId}</span></td>
+                        <td>x${item.quantity}</td>
+                        <td><small>${item.sourceType}</small></td>
+                    </tr>`;
+                } else {
+                    return `<tr>
+                        <td>${date}</td>
+                        <td class="score-plus">+${item.scorePlus}</td>
+                        <td><strong>${item.totalScore.toLocaleString()}</strong></td>
+                    </tr>`;
+                }
+            }).join('');
+
+            pageInfo.textContent = `${state.lang === 'vi' ? 'Trang' : 'Page'} ${state.historyPage}`;
+        } catch (err) {
+            body.innerHTML = `<tr><td colspan="4">Error loading history.</td></tr>`;
         }
     },
 
@@ -205,7 +293,6 @@ const UIController = {
                     state.user = { msisdn, fullName };
                     localStorage.setItem('game_token', token);
                     localStorage.setItem('user_info', JSON.stringify(state.user));
-                    this.showToast('Đăng nhập thành công!', 'success');
                     this.checkAuth();
                 }
             }
@@ -217,7 +304,7 @@ const UIController = {
         state.token = null;
         state.user = null;
         this.checkAuth();
-        this.showToast('Đã đăng xuất');
+        this.showToast('Logged out');
     },
 
     checkAuth() {
@@ -247,8 +334,7 @@ const UIController = {
 
     switchView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-        const targetView = document.getElementById(`${viewId}View`);
-        if (targetView) targetView.classList.remove('hidden');
+        document.getElementById(`${viewId}View`)?.classList.remove('hidden');
 
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.view === viewId);
@@ -264,6 +350,7 @@ const UIController = {
             case 'inventory': await this.renderInventory(); break;
             case 'leaderboard': await this.renderLeaderboard(); break;
             case 'dashboard': await this.updateDashboard(); break;
+            case 'history': await this.renderHistory(); break;
         }
     },
 
@@ -277,13 +364,13 @@ const UIController = {
                 <div class="item-card">
                     <div class="item-img">📦</div>
                     <div class="item-info">
-                        <h3>${p.item_name || 'Sản phẩm'}</h3>
+                        <h3>${p.item_name || 'Item'}</h3>
                         <p class="item-price">${p.price} Coins</p>
-                        <button class="btn-primary" onclick="UIController.handlePurchase(${p.item_id})">Mua ngay</button>
+                        <button class="btn-primary" onclick="UIController.handlePurchase(${p.item_id})">Buy</button>
                     </div>
                 </div>
             `).join('');
-        } catch (err) { container.innerHTML = 'Lỗi tải Shop.'; }
+        } catch (err) { container.innerHTML = 'Error loading shop.'; }
     },
 
     async renderInventory() {
@@ -292,34 +379,34 @@ const UIController = {
         try {
             const res = await ApiService.getInventory();
             state.inventory = res.data || [];
-            
             if (state.inventory.length === 0) {
-                container.innerHTML = '<div class="empty-state">Túi đồ của bạn đang trống.</div>';
+                container.innerHTML = '<div class="empty-state">Empty inventory.</div>';
                 return;
             }
-
             container.innerHTML = state.inventory.map(inv => `
                 <div class="item-card">
                     <div class="item-img">💎</div>
                     <div class="item-info">
-                        <h3>${inv.item?.item_name || 'Vật phẩm'}</h3>
-                        <p>Số lượng: ${inv.quantity}</p>
-                        <button class="btn-secondary" 
-                                onclick="UIController.handleUseItem(${inv.item_reference_id})">
-                            Sử dụng
-                        </button>
+                        <h3>${inv.item?.item_name || 'Item'}</h3>
+                        <p>Qty: ${inv.quantity}</p>
+                        <button class="btn-secondary" onclick="UIController.handleUseItem(${inv.item_reference_id})">Use</button>
                     </div>
                 </div>
             `).join('');
-        } catch (err) { container.innerHTML = 'Lỗi tải Inventory.'; }
+        } catch (err) { container.innerHTML = 'Error loading inventory.'; }
     },
 
     async handlePurchase(productId) {
-        try {
-            await ApiService.purchase(productId);
-            this.showToast('Mua thành công!', 'success');
-            await this.renderInventory();
-        } catch (err) { }
+       try {
+        const res = await ApiService.request('/purchase', {
+            method: 'POST',
+            body: JSON.stringify({ productId: Number(productId), gameId: state.gameId })
+        });
+        this.showToast(res.message, 'success'); 
+        await this.renderInventory();
+    } catch (err) {
+        this.showToast(err.message, 'error');
+    }
     },
 
     async handleUseItem(itemId) {
@@ -331,11 +418,13 @@ const UIController = {
     },
 
     async handleOpenBox() {
-        try {
-            const res = await ApiService.openLuckybox();
-            this.showToast(`Bạn nhận được: ${res.data.itemName || 'quà'}!`, 'success');
-            await this.renderInventory();
-        } catch (err) { }
+    try {
+        const res = await ApiService.openLuckybox();
+        this.showToast(res.message, 'success'); 
+        await this.renderInventory();
+    } catch (err) {
+        this.showToast(err.message, 'error');
+    }
     },
 
     showToast(message, type = 'info') {
@@ -345,7 +434,10 @@ const UIController = {
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
         container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
     },
 
     hideLoader() {
