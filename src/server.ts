@@ -53,8 +53,9 @@ app.use((req: Request, res: Response) => {
 
 const startServer = async () => {
     try {
-        Logger.info('⏳ Đang khởi động Mystery Box Services...');
+        Logger.info('Đang khởi động Mystery Box Services...');
         await prisma.$connect();
+        Logger.info('Kết nối MySQL (Prisma) thành công.');
         await connectMongoDB();
         await connectRedis();
 

@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { APIResponse, HttpStatusCode } from '../utils/APIResponse';
+import { verifyToken, TokenPayload } from '../utils/JwtUtil'; 
 
 export const JwtAuthMiddle = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
 
+    // 1. Kiểm tra format header
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(HttpStatusCode.UNAUTHORIZED)
                   .json(APIResponse.Unauthorized("Bạn chưa đăng nhập! (Thiếu Token)"));
@@ -13,27 +14,37 @@ export const JwtAuthMiddle = (req: Request, res: Response, next: NextFunction) =
     const token = authHeader.split(' ')[1];
 
     try {
-        const secret = process.env.JWT_SECRET || 'secret-mac-dinh'; 
-        const decoded = jwt.verify(token, secret) as any;
+        // 2. Verify bằng Util (Đồng bộ logic secret key và expire time)
+        const decoded: TokenPayload = verifyToken(token);
 
-        // Lưu vào req.user để dùng nếu cần
+        // 3. Gán thông tin đã giải mã vào request để Controller dùng
         (req as any).user = decoded; 
         
-        // [QUAN TRỌNG] Trích xuất từ Token và ghi đè vào Header
-        // Việc này đảm bảo thông tin userId là chính xác, không thể giả mạo
-        if (decoded.userId) {
-             req.headers['x-user-id'] = String(decoded.userId);
+        // 4. Map Header định danh người dùng
+        if (decoded.msisdn) {
+             req.headers['x-msisdn'] = decoded.msisdn;
+             
+             // [Backward Compatibility] Map msisdn vào x-user-id 
+             req.headers['x-user-id'] = decoded.msisdn;
         }
         
-        // Lấy gameId từ token (nếu có) hoặc từ header người dùng gửi lên
-        const gameId = decoded.gameId || req.headers['x-game-id'];
+        // 5. Map Header Game ID
+        const gameId = decoded.gameType || req.headers['x-game-id'];
+        
         if (gameId) {
              req.headers['x-game-id'] = String(gameId);
         }
 
         next();
-    } catch (error) {
+
+    } catch (error: any) {
+
+        const message = error.message === 'Token expired' 
+            ? "Phiên đăng nhập đã hết hạn! Vui lòng đăng nhập lại." 
+            : "Token không hợp lệ hoặc bị lỗi xác thực.";
+            
+        // Trả về 403 Forbidden để Client biết đường logout/refresh
         return res.status(HttpStatusCode.FORBIDDEN)
-                  .json(APIResponse.Forbidden("Token không hợp lệ hoặc đã hết hạn!"));
+                  .json(APIResponse.Forbidden(message));
     }
 };

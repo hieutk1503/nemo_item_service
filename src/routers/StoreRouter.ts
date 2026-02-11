@@ -17,12 +17,18 @@ StoreRouter.use('/', createRouter(storeController, [
     {
         method: 'get',
         path: '/products',    
-        handler: 'getList'
+        handler: 'getList',
+        middlewares: [
+            JwtAuthMiddle
+        ]
     },
     {
         method: 'get',
         path: '/product/:id',
-        handler: 'getDetail'
+        handler: 'getDetail',
+        middlewares: [
+            JwtAuthMiddle
+        ]
     },
 
     // --- PHẦN 2: TRANSACTION (Private) ---

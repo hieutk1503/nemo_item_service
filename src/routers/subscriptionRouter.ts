@@ -1,6 +1,6 @@
 import { SubscriptionController } from "../controllers/SubscriptionController";
 import { createRouter } from "../utils/CreateRouter";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { JwtAuthMiddle } from "../middlewares/JwtAuthMiddle";
 
 const controller = new SubscriptionController();
 
@@ -13,7 +13,9 @@ export default createRouter(controller, [
     {
         method: 'get',
         path: '/client/me/transactions', // Xem lịch sử mua gói của bản thân
-        middlewares: [authMiddleware],
+        middlewares: [
+                    JwtAuthMiddle 
+                ],
         handler: 'getTransactions'
     },
 
@@ -21,13 +23,17 @@ export default createRouter(controller, [
     {
         method: 'post',
         path: '/client/purchase',   // Khởi tạo mua gói
-        middlewares: [authMiddleware],
+        middlewares: [
+            JwtAuthMiddle 
+        ],
         handler: 'purchase'
     },
     {
         method: 'post',
         path: '/client/confirm',    // Xác nhận OTP
-        middlewares: [authMiddleware],
+        middlewares: [
+            JwtAuthMiddle 
+        ],
         handler: 'confirm'
     },
 

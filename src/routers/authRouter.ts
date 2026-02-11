@@ -1,6 +1,6 @@
 import { LaunchController } from "../controllers/LaunchController";
 import { createRouter } from "../utils/CreateRouter";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { JwtAuthMiddle } from "../middlewares/JwtAuthMiddle";
 
 const controller = new LaunchController();
 
@@ -13,13 +13,17 @@ export default createRouter(controller, [
     {
         method: 'get',
         path: '/user/profile',      // Lấy thông tin chi tiết User
-        middlewares: [authMiddleware],
+        middlewares: [
+                    JwtAuthMiddle 
+                ],
         handler: 'getProfile' 
     },
     {
         method: 'post',
         path: '/auth/update-password', // Đặt pass lần đầu (First Login)
-        middlewares: [authMiddleware],
+        middlewares: [
+            JwtAuthMiddle 
+        ],
         handler: 'updatePassword'
     },
     {
