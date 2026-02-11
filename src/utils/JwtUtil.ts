@@ -1,12 +1,9 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+const getSecret = () => process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+const getExpiresIn = () => process.env.JWT_EXPIRES_IN; 
+const getRefreshExpiresIn = () => process.env.JWT_REFRESH_EXPIRES_IN;
 
-/**
- * Interface cho dữ liệu trong Token
- */
 export interface TokenPayload {
     msisdn: string;
     username: string | null; 
@@ -18,20 +15,15 @@ export interface TokenPayload {
     [key: string]: any;
 }
 
-/**
- * Hàm gốc tạo token (Internal use)
- */
-export const generateToken = (payload: object, expiresIn: any = JWT_EXPIRES_IN): string => {
-    return jwt.sign(payload, JWT_SECRET, {
-        expiresIn,
+// Hàm gốc
+export const generateToken = (payload: object, expiresIn: any): string => {
+    return jwt.sign(payload, getSecret(), {
+        expiresIn: expiresIn, 
         issuer: 'gaming-core',
     });
 };
 
-/**
- * Tạo Access Token
- * Input: msisdn, username, fullName, gameType
- */
+// Access Token
 export const generateAccessToken = (
     msisdn: string, 
     username: string | null, 
@@ -39,19 +31,13 @@ export const generateAccessToken = (
     gameType: string, 
     additionalData: object = {}
 ): string => {
+    // [FIX]: Gọi getExpiresIn() để lấy đúng cấu hình env
     return generateToken({
-        msisdn,
-        username,
-        fullName,
-        gameType,
-        type: 'access',
-        ...additionalData
-    }, JWT_EXPIRES_IN);
+        msisdn, username, fullName, gameType, type: 'access', ...additionalData
+    }, getExpiresIn());
 };
 
-/**
- * Tạo Refresh Token
- */
+// Refresh Token
 export const generateRefreshToken = (
     msisdn: string, 
     username: string | null, 
@@ -59,45 +45,23 @@ export const generateRefreshToken = (
     gameType: string
 ): string => {
     return generateToken({
-        msisdn,
-        username,
-        fullName,
-        gameType,
-        type: 'refresh'
-    }, JWT_REFRESH_EXPIRES_IN);
+        msisdn, username, fullName, gameType, type: 'refresh'
+    }, getRefreshExpiresIn());
 };
 
-/**
- * Verify Token (Kiểm tra tính hợp lệ)
- */
+// [FIX 2]: Bỏ Try-Catch. Để error gốc "nổi" lên cho Middleware xử lý.
 export const verifyToken = (token: string): TokenPayload => {
-    try {
-        return jwt.verify(token, JWT_SECRET, {
-            issuer: 'gaming-core'
-        }) as TokenPayload;
-    } catch (error: any) {
-        if (error.name === 'TokenExpiredError') {
-            throw new Error('Token expired');
-        } else if (error.name === 'JsonWebTokenError') {
-            throw new Error('Invalid token');
-        } else {
-            throw error;
-        }
-    }
+    return jwt.verify(token, getSecret(), {
+        issuer: 'gaming-core'
+    }) as TokenPayload;
 };
 
-/**
- * Decode Token (Không verify, chỉ đọc dữ liệu)
- */
 export const decodeToken = (token: string): any => {
     return jwt.decode(token);
 };
 
-/**
- * Refresh Access Token từ Refresh Token cũ
- */
 export const refreshAccessToken = (refreshToken: string): string => {
-    const decoded = verifyToken(refreshToken);
+    const decoded = verifyToken(refreshToken); // Tự throw lỗi nếu hết hạn
 
     if (decoded.type !== 'refresh') {
         throw new Error('Invalid token type');

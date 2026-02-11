@@ -44,12 +44,25 @@ const ApiService = {
 
         try {
             const response = await fetch(finalUrl, { ...options, headers });
+            
+            // [THÊM LOGIC AUTO LOGOUT TẠI ĐÂY]
+            // Nếu Backend trả về 403 (Token hết hạn/lỗi) -> Tự động Logout
+            if (response.status === 403) {
+                UIController.showToast("Phiên đăng nhập đã hết hạn!", "error");
+                UIController.handleLogout(); // Gọi hàm logout để xóa token và về màn hình login
+                throw new Error("Session expired"); // Dừng luôn luồng xử lý
+            }
+
             const result = await response.json();
+            
             // Server sẽ trả về message đã được dịch dựa trên tham số lang này
             if (!response.ok) throw new Error(result.message || 'API request failed');
             return result;
         } catch (error) {
-            UIController.showToast(error.message, 'error');
+            // Không show toast lỗi nếu là do session expired (đã xử lý trên)
+            if (error.message !== "Session expired") {
+                UIController.showToast(error.message, 'error');
+            }
             throw error;
         }
     },
@@ -420,7 +433,10 @@ const UIController = {
     async handleOpenBox() {
     try {
         const res = await ApiService.openLuckybox();
-        this.showToast(res.message, 'success'); 
+        console.log("Luckybox Res:", res); 
+        
+        this.showToast(res.message || "Mở quà thành công!", 'success'); 
+        
         await this.renderInventory();
     } catch (err) {
         this.showToast(err.message, 'error');

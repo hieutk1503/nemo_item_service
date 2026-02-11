@@ -1,6 +1,6 @@
 import prisma from '../configs/PrismaContext';
 import { ServiceResponse } from '../utils/ServiceResponse';
-import { generateAccessToken } from '../utils/JwtUtil'; // [CHANGE] Import từ JwtUtil
+import { generateAccessToken } from '../utils/JwtUtil'; 
 import * as bcrypt from 'bcrypt';
 
 const WEBGAME_URL = process.env.WEBGAME_URL || 'http://localhost:3000';
@@ -12,7 +12,7 @@ export class AuthService {
      */
     static async launchGame(payload: { msisdn: string; fullName: string; lang: string; gameType: string }) {
         try {
-            // VALIDATION
+            // --- 1. VALIDATION ---
             if (!payload) return ServiceResponse.Fail("Payload không được để trống", 400);
 
             if (!payload.msisdn || typeof payload.msisdn !== 'string') {
@@ -28,7 +28,7 @@ export class AuthService {
                 finalName = payload.fullName.length > 50 ? payload.fullName.substring(0, 50) : payload.fullName;
             }
 
-            // CHECK TRƯỚC KHI XỬ LÝ 
+            // --- 2. LOGIC TÌM/TẠO USER ---
             let user = await prisma.user.findUnique({
                 where: { msisdn: payload.msisdn }
             });
@@ -36,14 +36,11 @@ export class AuthService {
             let isFirstLogin = false;
 
             if (user) {
-                // CASE 1: USER ĐÃ TỒN TẠI -> UPDATE
                 isFirstLogin = false;
-                
                 if (user.status === 'BLOCKED') {
                     return ServiceResponse.Fail("Tài khoản của bạn đã bị khóa", 403);
                 }
-
-                // Cập nhật thông tin mới nhất
+                // Update info
                 user = await prisma.user.update({
                     where: { msisdn: payload.msisdn }, 
                     data: {
@@ -52,11 +49,8 @@ export class AuthService {
                         lang: payload.lang || 'vi'
                     }
                 });
-
             } else {
-                // CASE 2: CHƯA TỒN TẠI -> CREATE
                 isFirstLogin = true;
-
                 user = await prisma.user.create({
                     data: {
                         msisdn: payload.msisdn,
@@ -68,15 +62,15 @@ export class AuthService {
                 });
             }
 
-            //JwtUtil
+            // --- 3. TẠO TOKEN BẰNG JWT UTIL ---
             const token = generateAccessToken(
-                user!.msisdn,
-                user!.username,
-                user!.fullName,
-                payload.gameType
+                user.msisdn,
+                user.username || null,
+                user.fullName || finalName, 
+                payload.gameType || 'DEFAULT'
             );
 
-            // TẠO MAGIC LINK
+            // --- 4. TẠO MAGIC LINK ---
             const webUrl = `${WEBGAME_URL}/?token=${token}&lang=${payload.lang || 'vi'}&game=${payload.gameType || 'DEFAULT'}&firstLogin=${isFirstLogin}`;
 
             return ServiceResponse.Success({
@@ -86,114 +80,13 @@ export class AuthService {
             }, "Thành công");
 
         } catch (error: any) {
-            console.error("[AuthService] Launch Error:", error);
-            return ServiceResponse.Fail("Internal Server Error");
+            console.error("[AuthService] Launch Error:", error); 
+            return ServiceResponse.Fail("Lỗi hệ thống (Launch Game)");
         }
     }
 
     /**
-     * API: Cập nhật mật khẩu
-     */
-    static async updatePassword(msisdn: string, newPass: string) {
-        try {
-            if (!newPass || newPass.length < 6) {
-                return ServiceResponse.Fail("Mật khẩu phải có ít nhất 6 ký tự", 400);
-            }
-
-            const hashedPassword = await bcrypt.hash(newPass, 10);
-            
-            const user = await prisma.user.findUnique({ where: { msisdn } });
-            if (!user) return ServiceResponse.Fail("User không tồn tại", 404);
-
-            await prisma.user.update({
-                where: { msisdn: msisdn },
-                data: {
-                    password: hashedPassword,
-                    firstLogin: false
-                }
-            });
-            return ServiceResponse.Success(null, "Cập nhật mật khẩu thành công");
-        } catch (error) {
-            return ServiceResponse.Fail("Lỗi cập nhật mật khẩu");
-        }
-    }
-
-    /**
-     * API: Lấy Profile
-     */
-    static async getProfile(msisdn: string) {
-        try {
-            const user = await prisma.user.findUnique({
-                where: { msisdn },
-                include: {
-                    subscriptions: {
-                        where: { status: 1 },
-                        include: { plan: true }
-                    }
-                }
-            });
-
-            if (!user) return ServiceResponse.Fail("User not found", 404);
-            
-            const { password, ...userWithoutPassword } = user;
-            return ServiceResponse.Success(userWithoutPassword, "Lấy profile thành công");
-        } catch (error) {
-            return ServiceResponse.Fail("Lỗi hệ thống khi lấy profile");
-        }
-    }
-
-    /**
-     * API: Đăng ký
-     */
-    static async register(payload: { username: string; password: string; msisdn: string; fullName: string }) {
-        try {
-            if (!payload) return ServiceResponse.Fail("Dữ liệu không hợp lệ", 400);
-            const { username, password, msisdn, fullName } = payload;
-
-            if (!username || !password || !msisdn) {
-                return ServiceResponse.Fail("Vui lòng nhập đủ thông tin", 400);
-            }
-
-            const phoneRegex = /^[0-9]{10,12}$/;
-            if (!phoneRegex.test(msisdn)) {
-                return ServiceResponse.Fail("SĐT không đúng định dạng", 400);
-            }
-
-            const existingUser = await prisma.user.findFirst({
-                where: {
-                    OR: [{ username }, { msisdn }]
-                }
-            });
-
-            if (existingUser) return ServiceResponse.Fail("Tài khoản đã tồn tại", 400);
-
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            const newUser = await prisma.user.create({
-                data: {
-                    username,
-                    password: hashedPassword,
-                    msisdn,
-                    fullName: fullName || "New Gamer",
-                    firstLogin: false,
-                    status: 'ACTIVE',
-                    lang: 'vi'
-                }
-            });
-
-            return ServiceResponse.Success({
-                username: newUser.username,
-                msisdn: newUser.msisdn
-            }, "Đăng ký thành công");
-
-        } catch (error) {
-            console.error("[AuthService] Register Error:", error);
-            return ServiceResponse.Fail("Lỗi đăng ký");
-        }
-    }
-
-    /**
-     * API: Đăng nhập
+     * API: Đăng nhập Web
      */
     static async login(payload: { username: string; password: string }) {
         try {
@@ -214,7 +107,7 @@ export class AuthService {
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) return ServiceResponse.Fail("Sai tài khoản hoặc mật khẩu", 401);
 
-            //JwtUtil
+            // TẠO TOKEN
             const token = generateAccessToken(
                 user.msisdn,
                 user.username,
@@ -235,5 +128,45 @@ export class AuthService {
             console.error("[AuthService] Login Error:", error);
             return ServiceResponse.Fail("Lỗi đăng nhập");
         }
+    }
+
+    static async updatePassword(msisdn: string, newPass: string) {
+        try {
+            if (!newPass || newPass.length < 6) return ServiceResponse.Fail("Mật khẩu yếu", 400);
+            const hashedPassword = await bcrypt.hash(newPass, 10);
+            await prisma.user.update({
+                where: { msisdn },
+                data: { password: hashedPassword, firstLogin: false }
+            });
+            return ServiceResponse.Success(null, "Cập nhật thành công");
+        } catch (error) { return ServiceResponse.Fail("Lỗi cập nhật mật khẩu"); }
+    }
+
+    static async getProfile(msisdn: string) {
+        try {
+            const user = await prisma.user.findUnique({
+                where: { msisdn },
+                include: { subscriptions: { where: { status: 1 }, include: { plan: true } } }
+            });
+            if (!user) return ServiceResponse.Fail("User not found", 404);
+            const { password, ...rest } = user;
+            return ServiceResponse.Success(rest, "Success");
+        } catch (e) { return ServiceResponse.Fail("Lỗi lấy profile"); }
+    }
+
+    static async register(payload: any) {
+        try {
+            const { username, password, msisdn, fullName } = payload;
+            if (!username || !password || !msisdn) return ServiceResponse.Fail("Thiếu thông tin", 400);
+            
+            const exists = await prisma.user.findFirst({ where: { OR: [{ username }, { msisdn }] } });
+            if (exists) return ServiceResponse.Fail("Tài khoản đã tồn tại", 400);
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const newUser = await prisma.user.create({
+                data: { username, password: hashedPassword, msisdn, fullName: fullName || "New Gamer", status: 'ACTIVE', lang: 'vi' }
+            });
+            return ServiceResponse.Success({ username: newUser.username }, "Đăng ký thành công");
+        } catch (e) { console.error(e); return ServiceResponse.Fail("Lỗi đăng ký"); }
     }
 }
