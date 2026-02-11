@@ -1,6 +1,7 @@
 import { PrizeController } from "../controllers/prizeController";
 import { createRouter } from "../utils/CreateRouter";
 import { JwtAuthMiddle } from "../middlewares/JwtAuthMiddle";
+import { LangMiddle } from "../middlewares/LangMiddle";
 
 const controller = new PrizeController();
 
@@ -9,7 +10,11 @@ export default createRouter(controller, [
     {
         method: 'get',
         path: '/leaderboard',       // API: /api/leaderboard?gameId=...
-        handler: 'getLeaderboard'  
+        handler: 'getLeaderboard' ,
+        middlewares: [
+            JwtAuthMiddle, 
+            LangMiddle                 
+        ] 
     },
     
 
@@ -19,7 +24,8 @@ export default createRouter(controller, [
         path: '/history',           // API: /api/history?type=reward...
         handler: 'getMyHistory',
         middlewares: [
-            JwtAuthMiddle,                  
+            JwtAuthMiddle, 
+            LangMiddle                 
         ]
     },
     {
@@ -27,7 +33,8 @@ export default createRouter(controller, [
         path: '/luckybox/open',     // API: /api/luckybox/open
         handler: 'playLuckybox',
         middlewares: [
-            JwtAuthMiddle,                  
+            JwtAuthMiddle,  
+            LangMiddle            
         ]
     },
     {
@@ -35,7 +42,8 @@ export default createRouter(controller, [
         path: '/score/submit',      // API: /api/score/submit
         handler: 'submitScore',
          middlewares: [
-            JwtAuthMiddle,                  
+            JwtAuthMiddle,
+            LangMiddle                   
         ]
     },
     
@@ -44,7 +52,8 @@ export default createRouter(controller, [
         path: '/season/end',    // API: /api/season/end
         handler: 'endSeason',
          middlewares: [
-            JwtAuthMiddle,                  
+            JwtAuthMiddle, 
+            LangMiddle                  
         ]   
     }
 ]);

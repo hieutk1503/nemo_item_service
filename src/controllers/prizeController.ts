@@ -3,6 +3,7 @@ import { LeaderboardManager } from "../manager/leaderboardManager";
 import { PrizeService } from "../services/prizeService";
 import { APIResponse, HttpStatusCode } from "../utils/APIResponse"; 
 import { Logger } from "../utils/Logger"; 
+import { I18n } from "../helpers/i18nHelper";
 
 export class PrizeController {
     
@@ -10,7 +11,7 @@ export class PrizeController {
     private readonly _service = new PrizeService();
 
     private maskPhone(phone: string): string {
-        return phone.replace(/.{4}$/, '****');
+        return phone.replace(/.{4}$/, '****');  
     }
 
     private getUserIdFromToken(req: any): string | null {
@@ -19,7 +20,7 @@ export class PrizeController {
     }
 
     // Handler: Lấy Bảng Xếp Hạng
-    getLeaderboard = async (req: Request, res: Response) => {
+    getLeaderboard = async (req: any, res: Response) => {
         try {
             const { gameId, seasonId } = req.query;
             
@@ -56,10 +57,9 @@ export class PrizeController {
             // 6. Map dữ liệu Leaderboard (Top 10)
             const leaderboard = topRedis.map((item, index) => {
                 const info = usersInfo.find(u => u.username === item.value);
-                let displayPhone = item.value;
-                if (info && info.msisdn && info.msisdn.length >= 5) {
-                    displayPhone = this.maskPhone(info.msisdn);
-                }
+                let rawPhone = info?.msisdn || item.value;
+                let displayPhone = this.maskPhone(rawPhone);
+
                 return {
                     rank: index + 1,
                     phone: displayPhone,
@@ -85,28 +85,28 @@ export class PrizeController {
             }
 
             return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK("Lấy BXH thành công", { leaderboard, me }));
+                      .json(APIResponse.OK(I18n.t("LB_SUCCESS", req.lang), { leaderboard, me }));
 
         } catch (error: any) {
             Logger.error("Controller Error getLeaderboard: " + error.message, { stack: error.stack });
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-                      .json(APIResponse.ServerError("Lỗi hệ thống: " + error.message));
+                      .json(APIResponse.ServerError(I18n.t("SYSTEM_ERROR", req.lang) + error.message));
         }
     }
 
     // Handler: Nạp điểm 
-    submitScore = async (req: Request, res: Response) => {
+    submitScore = async (req: any, res: Response) => {
         try {
             const userId = this.getUserIdFromToken(req);
             if (!userId) {
-                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest("Token không hợp lệ"));
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest(I18n.t("TOKEN_INVALID", req.lang)));
             }
 
             const { gameId, seasonId, score } = req.body;
             
             if (!gameId || !score) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest("Dữ liệu nạp điểm không hợp lệ"));
+                          .json(APIResponse.BadRequest(I18n.t("INVALID_SCORE_DATA", req.lang)));
             }
 
             const newTotal = await this._lbManager.addScore(gameId, Number(seasonId), userId, Number(score));
@@ -114,20 +114,20 @@ export class PrizeController {
             this._service.logScoreHistory(userId, gameId, Number(seasonId), Number(score), newTotal);
 
             return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK("Cộng điểm thành công", { newTotal }));
+                      .json(APIResponse.OK(I18n.t("SCORE_SUCCESS", req.lang), { newTotal }));
         } catch (error: any) {
             Logger.error("Controller Error submitScore: " + error.message, { stack: error.stack });
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-                      .json(APIResponse.ServerError("Lỗi hệ thống: " + error.message));
+                      .json(APIResponse.ServerError(I18n.t("SYSTEM_ERROR", req.lang) + error.message));
         }
     }
 
     // Handler: Mở Luckybox (BẮT BUỘC AUTH)
-    playLuckybox = async (req: Request, res: Response) => {
+    playLuckybox = async (req: any, res: Response) => {
         try {
             const userId = this.getUserIdFromToken(req);
             if (!userId) {
-                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest("Token không hợp lệ"));
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest(I18n.t("TOKEN_INVALID", req.lang)));
             }
 
             const { gameId } = req.body;
@@ -136,24 +136,24 @@ export class PrizeController {
             
             if (!result.success) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest(result.message));
+                          .json(APIResponse.BadRequest(I18n.t(result.message, req.lang)));
             }
 
             return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK(result.message, result.data));
+                      .json(APIResponse.OK(I18n.t("LUCKY_SUCCESS", req.lang), result.data));
         } catch (error: any) {
             Logger.error("Controller Error playLuckybox: " + error.message, { stack: error.stack });
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-                      .json(APIResponse.ServerError("Lỗi hệ thống: " + error.message));
+                      .json(APIResponse.ServerError(I18n.t("SYSTEM_ERROR", req.lang) + error.message));
         }
     }
 
     // Handler: Lấy lịch sử (BẮT BUỘC AUTH)
-    getMyHistory = async (req: Request, res: Response) => {
+    getMyHistory = async (req: any, res: Response) => {
         try {
             const userId = this.getUserIdFromToken(req);
             if (!userId) {
-                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest("Token không hợp lệ"));
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.BadRequest(I18n.t("TOKEN_INVALID", req.lang)));
             }
 
             const gameId = req.query.gameId as string;
@@ -163,50 +163,50 @@ export class PrizeController {
 
             if (!gameId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest("Thiếu gameId"));
+                          .json(APIResponse.BadRequest(I18n.t("MISSING_GAME_ID", req.lang)));
             }
 
             const result = await this._service.getHistory(userId, gameId, type, page, limit);
             
             if (!result.success) {
                  return res.status(HttpStatusCode.BAD_REQUEST)
-                            .json(APIResponse.BadRequest(result.message));
+                            .json(APIResponse.BadRequest(I18n.t(result.message, req.lang)));
             }
 
             return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK(result.message, result.data));
+                      .json(APIResponse.OK(I18n.t("HISTORY_SUCCESS", req.lang), result.data));
         } catch (error: any) {
             Logger.error("Controller Error getMyHistory: " + error.message, { stack: error.stack });
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-                      .json(APIResponse.ServerError("Lỗi hệ thống: " + error.message));
+                      .json(APIResponse.ServerError(I18n.t("SYSTEM_ERROR", req.lang) + error.message));
         }
     }
 
     // Handler: Kết thúc mùa giải (ADMIN)
-    endSeason = async (req: Request, res: Response) => {
+    endSeason = async (req: any, res: Response) => {
         try {
             
             const { gameId, seasonId } = req.body;
 
             if (!gameId || !seasonId) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest("Thiếu gameId hoặc seasonId"));
+                          .json(APIResponse.BadRequest(I18n.t("MISSING_SEASON_INFO", req.lang)));
             }
 
             const result = await this._service.finalizeSeason(gameId, Number(seasonId));
 
             if (!result.success) {
                 return res.status(HttpStatusCode.BAD_REQUEST)
-                          .json(APIResponse.BadRequest(result.message));
+                          .json(APIResponse.BadRequest(I18n.t(result.message, req.lang)));
             }
 
             return res.status(HttpStatusCode.OK)
-                      .json(APIResponse.OK(result.message));
+                      .json(APIResponse.OK(I18n.t("FINALIZE_SUCCESS", req.lang)));
 
         } catch (error: any) {
             Logger.error("Controller Error endSeason: " + error.message, { stack: error.stack });
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
-                      .json(APIResponse.ServerError("Lỗi hệ thống: " + error.message));
+                      .json(APIResponse.ServerError(I18n.t("SYSTEM_ERROR", req.lang) + error.message));
         }
     }
 }
