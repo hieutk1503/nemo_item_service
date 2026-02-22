@@ -3,94 +3,108 @@ import { AuthService } from '../services/AuthService';
 import { APIResponse, HttpStatusCode } from '../utils/APIResponse';
 
 export class LaunchController {
+    
     /**
-     * API: Khởi tạo Game và kiểm tra đăng nhập lần đầu
-     * Path: POST /api/game/launch
+     * [POST] /api/game/launch
+     * Public API
      */
     launch = async (req: Request, res: Response) => {
         try {
-            const result = await AuthService.launchGame(req.body);
+            const { msisdn, fullName, lang, gameType } = req.body;
+
+            const result = await AuthService.launchGame({ msisdn, fullName, lang, gameType });
+            
             if (!result.success) {
                 return res.status(HttpStatusCode.BAD_REQUEST).json(result);
             }
             return res.status(HttpStatusCode.OK).json(result);
+
         } catch (error: any) {
-            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError(error.message));
+            console.error("Launch Error:", error); // Log lỗi ra server để debug
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR)
+                      .json(APIResponse.ServerError("Lỗi hệ thống khi khởi tạo game"));
         }
     }
 
     /**
-     * API: Đặt mật khẩu mới (Dùng cho Popup First Login)
-     * Path: POST /api/auth/update-password
-     * Yêu cầu: authMiddleware
+     * [POST] /api/auth/update-password
+     * Private API (Cần Token)
      */
-    updatePassword = async (req: any, res: Response) => {
+    updatePassword = async (req: Request, res: Response) => {
         try {
-            // msisdn được trích xuất từ Token thông qua authMiddleware
-            const msisdn = req.user.msisdn; 
+            // Ép kiểu (req as any) để lấy user từ Middleware
+            const currentUser = (req as any).user; 
             const { password } = req.body;
+
+            if (!currentUser || !currentUser.msisdn) {
+                 return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.Unauthorized());
+            }
 
             if (!password) {
                 return res.status(HttpStatusCode.BAD_REQUEST).json(APIResponse.BadRequest("Thiếu mật khẩu"));
             }
 
-            const result = await AuthService.updatePassword(msisdn, password);
+            const result = await AuthService.updatePassword(currentUser.msisdn, password);
             return res.status(HttpStatusCode.OK).json(result);
+
         } catch (error: any) {
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError(error.message));
         }
     }
 
     /**
-     * API: Lấy thông tin chi tiết người dùng
-     * Path: GET /api/user/profile
-     * Yêu cầu: authMiddleware
+     * [GET] /api/user/profile
+     * Private API (Cần Token)
      */
-    getProfile = async (req: any, res: Response) => {
+    getProfile = async (req: Request, res: Response) => {
         try {
-            // Lấy msisdn từ thông tin user đã verify qua token
-            const msisdn = req.user.msisdn;
+            const currentUser = (req as any).user;
+
+            if (!currentUser || !currentUser.msisdn) {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(APIResponse.Unauthorized());
+            }
             
-            const result = await AuthService.getProfile(msisdn);
+            const result = await AuthService.getProfile(currentUser.msisdn);
+            
             if (!result.success) {
                 return res.status(HttpStatusCode.NOT_FOUND).json(result);
             }
             return res.status(HttpStatusCode.OK).json(result);
+
         } catch (error: any) {
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError(error.message));
         }
     }
+
     /**
-     * API: Đăng ký tài khoản mới (Username/Password)
-     * Path: POST /api/auth/register
+     * [POST] /api/auth/register
+     * Public API
      */
     register = async (req: Request, res: Response) => {
         try {
-            const { username, password, msisdn } = req.body;
+            const { username, password, msisdn, fullName } = req.body;
 
-            // Validate dữ liệu đầu vào
             if (!username || !password || !msisdn) {
                 return res.status(HttpStatusCode.BAD_REQUEST).json(
                     APIResponse.BadRequest("Thiếu thông tin (username, password, msisdn)")
                 );
             }
 
-            const result = await AuthService.register(req.body);
+            const result = await AuthService.register({ username, password, msisdn, fullName });
             
             if (!result.success) {
                 return res.status(HttpStatusCode.BAD_REQUEST).json(result);
             }
             return res.status(HttpStatusCode.OK).json(result);
+
         } catch (error: any) {
-            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(
-                APIResponse.ServerError(error.message)
-            );
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError(error.message));
         }
     }
 
     /**
-     * API: Đăng nhập (Username/Password)
-     * Path: POST /api/auth/login
+     * [POST] /api/auth/login
+     * Public API
      */
     login = async (req: Request, res: Response) => {
         try {
@@ -101,17 +115,17 @@ export class LaunchController {
                     APIResponse.BadRequest("Thiếu tài khoản hoặc mật khẩu")
                 );
             }
-            const result = await AuthService.login(req.body);
+            
+            const result = await AuthService.login({ username, password });
 
             if (!result.success) {
-                // Trả về 401 Unauthorized nếu sai pass
+                // Login fail thường là 401
                 return res.status(HttpStatusCode.UNAUTHORIZED).json(result);
             }
             return res.status(HttpStatusCode.OK).json(result);
+
         } catch (error: any) {
-            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(
-                APIResponse.ServerError(error.message)
-            );
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(APIResponse.ServerError(error.message));
         }
     }
 }
