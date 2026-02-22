@@ -122,6 +122,44 @@ class LeaderboardManagerClass extends BaseRedisManager<any> {
             Logger.error(`Lỗi deleteLeaderboard: ${e.message}`);
         }
     }
+    // Lấy danh sách phân trang
+    async getPagedList(gameId: string, seasonId: number, start: number, stop: number) {
+        try {
+            const key = this.getLbKey(gameId, seasonId);
+            const rawResult = await RedisClient.sendCommand([
+                'ZREVRANGE', 
+                key, 
+                String(start), 
+                String(stop), 
+                'WITHSCORES'
+            ]);
+            const list = [];
+            
+            if (Array.isArray(rawResult)) {
+                for (let i = 0; i < rawResult.length; i += 2) {
+                    list.push({
+                        value: String(rawResult[i]),       // User ID
+                        score: Number(rawResult[i + 1])    // Điểm số
+                    });
+                }
+            }
+
+            return list;
+
+        } catch (e: any) {
+            Logger.error(`Lỗi getPagedList: ${e.message}`, { stack: e.stack });
+            return [];
+        }
+    }
+    // Đếm tổng người chơi
+    async getTotalCount(gameId: string, seasonId: number) {
+        try {
+            const key = this.getLbKey(gameId, seasonId);
+            return await RedisClient.zCard(key);
+        } catch (e: any) {
+            return 0;
+        }
+    }
 }
 
 export const LeaderboardManager = new LeaderboardManagerClass();
