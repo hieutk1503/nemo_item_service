@@ -54,6 +54,6 @@ export default createRouter(controller, [
          middlewares: [
             JwtAuthMiddle, 
             LangMiddle                  
-        ]   
-    }
+        ]  
+    },
 ]);
