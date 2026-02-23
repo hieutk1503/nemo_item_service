@@ -4,6 +4,7 @@ import ItemRouter from "./ItemRouter";
 import authRouter from "./authRouter";
 import subscriptionRouter from "./subscriptionRouter";
 import StoreRouter from "./StoreRouter";
+import cmsAuthRouter from "./cmsAuthRouter";
 
 const router = Router();
 
@@ -18,5 +19,7 @@ router.use('/', authRouter);
 
 // 5. Router Subscription
 router.use('/', subscriptionRouter);
+// 6. Router CMS Auth
+router.use('/cms', cmsAuthRouter);
 
 export default router;

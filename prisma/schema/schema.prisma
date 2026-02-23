@@ -265,19 +265,49 @@ model orders_item {
   @@index([order_id], map: "orders_item_order_id_fkey")
 }
 
+// 1. Bảng Role (Nhóm quyền)
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique // Ví dụ: SUPER_ADMIN, EDITOR
+  description String?      // Ví dụ: Quản trị viên cấp cao
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  admins      Admin[]      // 1 Role có nhiều Admin
+  permissions Permission[] // 1 Role có nhiều Permission
 
+  @@map("roles")
+}
 
+// 2. Bảng Permission (Quyền chi tiết)
+model Permission {
+  id             Int      @id @default(autoincrement())
+  permissionCode String   // Ví dụ: 'user.create', 'game.launch' (Vben dùng cái này)
+  description    String?  // Ví dụ: Quyền tạo người chơi
+  roleId         Int      // Link đến Role
+  createdAt      DateTime @default(now())
+  
+  role           Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@map("permissions")
+}
+
+// 3. Bảng Admin (Tài khoản CMS)
 model Admin {
   id        Int      @id @default(autoincrement())
   username  String   @unique
   password  String
   fullName  String?
-  role      String   @default("STAFF")
-  isActive  Boolean  @default(true)
+  status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
-  updatedAt DateTime
-}
+  updatedAt DateTime @updatedAt
+  
+  // Quan hệ: 1 Admin thuộc về 1 Role
+  roleId    Int      
+  role      Role     @relation(fields: [roleId], references: [id])
 
+  @@map("admins")
+}
 enum RewardType {
   Items
   Wallet
