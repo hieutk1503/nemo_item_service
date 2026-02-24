@@ -5,7 +5,7 @@ import ItemRouter from "./ItemRouter";
 import authRouter from "./authRouter";
 import subscriptionRouter from "./subscriptionRouter";
 import StoreRouter from "./StoreRouter";
-import cmsAuthRouter from "./cmsAuthRouter";
+import cmsAuthRouter from "./authRouter.CMS";
 
 const router = Router();
 

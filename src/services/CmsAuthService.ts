@@ -4,41 +4,46 @@ import { ServiceResponse } from '../utils/ServiceResponse';
 import { generateAccessToken } from '../utils/JwtUtil';
 
 export class CmsAuthService {
-
-    /**
-     * Xử lý Đăng nhập CMS
-     */
     static async login(payload: { username: string; password: string }) {
         try {
             const { username, password } = payload;
 
-            // 1. Tìm Admin
-            const admin = await prisma.admin.findUnique({ where: { username } });
+            // Lấy Admin kèm Role và Permission
+            const admin = await prisma.admin.findUnique({
+                where: { username },
+                include: {
+                    role: {
+                        include: { permissions: true }
+                    }
+                }
+            });
+
             if (!admin) return ServiceResponse.Fail("Tài khoản không tồn tại", 401);
 
-            // 2. Check Password
             const isMatch = await bcrypt.compare(password, admin.password);
             if (!isMatch) return ServiceResponse.Fail("Sai mật khẩu", 401);
 
-            // 3. Check Status
-            if (admin.status !== 'ACTIVE') return ServiceResponse.Fail("Tài khoản đã bị khóa", 403);
+            if (admin.status !== 'ACTIVE') return ServiceResponse.Fail("Tài khoản bị khóa", 403);
 
-            // 4. Tạo Token (Quan trọng: Gắn Role vào để Middleware check)
+            // Ép kiểu (p: any) tạm thời để TS không báo lỗi đỏ nếu ông chưa chạy prisma generate
+            const permissionList = admin.role.permissions.map((p: any) => p.permissionCode);
+
             const token = generateAccessToken(
-                `ADMIN_${admin.id}`, // msisdn giả (vì admin ko có sđt)
+                `ADMIN_${admin.id}`,
                 admin.username,
-                admin.fullName,
-                'CMS_SYSTEM',        // GameType định danh là CMS
+                admin.fullName || "Admin",
+                'CMS_SYSTEM', // Đánh dấu token của CMS
                 { 
-                    role: admin.role,
+                    role: admin.role.name, 
                     adminId: admin.id 
-                } 
+                }
             );
 
             return ServiceResponse.Success({
                 token,
-                role: admin.role,
-                fullName: admin.fullName
+                role: admin.role.name,
+                fullName: admin.fullName,
+                permissions: permissionList
             }, "Đăng nhập thành công");
 
         } catch (error) {
@@ -47,25 +52,35 @@ export class CmsAuthService {
         }
     }
 
-    /**
-     * Lấy thông tin Profile (Phục vụ Vben Admin hiển thị)
-     */
     static async getProfile(adminId: number) {
         try {
-            const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+            const admin = await prisma.admin.findUnique({ 
+                where: { id: adminId },
+                include: {
+                    role: {
+                        include: { permissions: true }
+                    }
+                }
+            });
+
             if (!admin) return ServiceResponse.Fail("Không tìm thấy Admin", 404);
 
-            // Cấu trúc trả về chuẩn cho Vben
-            return ServiceResponse.Success({
+            const permissionList = admin.role.permissions.map((p: any) => p.permissionCode);
+
+            const data = {
                 userId: admin.id,
                 username: admin.username,
-                realName: admin.fullName,
-                avatar: 'https://q1.qlogo.cn/g?b=qq&nk=190848757&s=640', // Avatar giả
-                desc: 'Manager',
-                // [QUAN TRỌNG]: Vben yêu cầu mảng roles ['SUPER_ADMIN']
-                roles: [admin.role], 
-            });
+                realName: admin.fullName || "Admin",
+                avatar: 'https://q1.qlogo.cn/g?b=qq&nk=190848757&s=640',
+                desc: admin.role.description,
+                roles: [admin.role.name],      
+                permissions: permissionList    
+            };
+
+            return ServiceResponse.Success(data, "Lấy thông tin thành công");
+            
         } catch (error) {
+            console.error("Get Profile Error:", error);
             return ServiceResponse.Fail("Lỗi lấy thông tin");
         }
     }
