@@ -11,8 +11,7 @@ import { CreateLoggerMiddle } from "./middlewares/LoggerMiddle";
 import { connectRedis } from "./utils/RedisClient";
 
 export const app = express();
-const PORT = process.env.PORT || 3000;
-
+const PORT = process.env.PORT || 3001;
 // 1. Middlewares cơ bản
 app.use(express.json()); 
 app.use(CorsMiddle);
@@ -23,15 +22,22 @@ app.use(express.static(path.join(process.cwd(), "frontend")));
 
 
 // 3. Định nghĩa API Routes
-app.use('/api', router);
-
-// 4. XỬ LÝ LỖI 404 CHO API (Cách mới: Không dùng dấu *)
-// Nếu một request vào /api mà không khớp route nào trong router, nó sẽ trôi xuống đây
-app.use('/api', (req: Request, res: Response) => {
-    res.status(404).json({ 
+app.use((req, res, next) => {
+    console.log(`[DEBUG] Method: ${req.method} | URL: ${req.url}`);
+    next();
+});
+app.use('/api/cms', router)
+// 4. XỬ LÝ LỖI 404 CHO API (SỬA LẠI ĐOẠN NÀY)
+// Chỉ chạy vào đây nếu đã đi hết file router mà KHÔNG CÓ cái nào khớp
+app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    // Nếu request đã được xử lý bởi router ở trên thì nó sẽ không chạy vào đây.
+    // Nhưng vì cấu trúc app.use ở server.ts rất nhạy cảm, tốt nhất là COMMENT nó lại để test trước.
+    /* res.status(404).json({ 
         success: false, 
         message: `API Endpoint [${req.method}] ${req.originalUrl} không tồn tại!` 
     });
+    */
+    next(); 
 });
 
 // 5. ROUTE TRANG CHỦ
